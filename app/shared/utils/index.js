@@ -9,6 +9,15 @@ const sequelizeOptions = {
         min: config.pool.min,
         acquire: config.pool.acquire,
         idle: config.pool.idle
+    },
+    define: {
+        //opciones globales de tablas
+        freezeTableName: true,
+        timestamps: true,
+        paranoid: true,
+        createdAt: 'creadoEn',
+        updatedAt: 'actualizadoEn',
+        deletedAt: 'archivadoEn'
     }
 };
 
