@@ -37,5 +37,13 @@ dbConnection.Sequelize = Sequelize;
 dbConnection.sequelize = sequelize;
 
 //agregar modelos aqui
+dbConnection.User = require('../../modules/Users/user.model.js')(sequelize, Sequelize);
+
+//Ejecucion de asociaciones embebidas en los modelos
+Object.keys(dbConnection).forEach(model => {
+    if(dbConnection[model].associate) {
+        dbConnection[model].associate(dbConnection);
+    }
+});
 
 module.exports = dbConnection;

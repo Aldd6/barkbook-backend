@@ -1,17 +1,17 @@
 module.exports = (sequelize, Sequelize) => {
-    const Usuario = sequelize.define('Usuario', {
+    const User = sequelize.define('User', {
         id: {
             type: Sequelize.INTEGER,
             primaryKey: true,
             autoIncrement: true,
             allowNull: false,
-            field: 'id_usuario'
+            field: 'user_id'
         },
         uid: {
             type: Sequelize.UUID,
             defaultValue: Sequelize.UUIDV4,
             allowNull: false,
-            field: 'uid_usuario'
+            field: 'user_uid'
         },
         rolId: {
             type: Sequelize.INTEGER,
@@ -19,8 +19,9 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: false,
             field: 'rol_id'
         },
-        usuario: {
+        username: {
             type: Sequelize.STRING,
+            allowNull: false,
             unique: true,
             validate: {
                 is: {
@@ -28,18 +29,19 @@ module.exports = (sequelize, Sequelize) => {
                     msg: 'El usuario debe contener unicamente numeros y letras.'
                 }
             },
-            field: 'nombre_usuario'
+            field: 'username'
         },
-        correoElectronico: {
+        email: {
             type: Sequelize.STIRNG(254),
+            allowNull: false,
             unique: true,
             validate: {
                 isEmail: true,
                 len: [5,254]
             },
-            field: 'correo_electronico'
+            field: 'email'
         },
-        hashContrasenia: {
+        hashPassword: {
             type: Sequelize.STRING(60),
             allowNull: false,
             validate: {
@@ -48,23 +50,23 @@ module.exports = (sequelize, Sequelize) => {
                     msg: "El formato del hash de la contraseña no es valido."
                 }
             },
-            field: 'hash_contrasenia'
+            field: 'hash_password'
         },
-        perfilCompletado: {
+        profileCompleted: {
             type: Sequelize.BOOLEAN,
             defaultValue: false,
-            field: 'perfil_completado'
+            field: 'profile_completed'
         }
     }, 
     {
         defaultScope: {
-            attributes: { exclude: ['hash_contrasenia'] }
+            attributes: { exclude: ['hash_password'] }
         }
     });
 
-    Usuario.associate = (models) => {
-        Usuario.belongsTo(models.Rol, { foreignKey: 'rol_id' });
+    User.associate = (models) => {
+        User.belongsTo(models.Rol, { foreignKey: 'rol_id' });
     }
 
-    return Usuario;
+    return User;
 }
