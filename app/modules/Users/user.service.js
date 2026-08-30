@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const ApiError = require('../../shared/utils/errors.js');
 const Op = dbConnection.Sequelize.Op;
 
-const createUser = async (createUserDTO) => {
+const create = async (createUserDTO) => {
     const { rolId, username, email, password } = createUserDTO;
 
     const roleExists = await Role.findByPk(rolId);
@@ -26,7 +26,7 @@ const createUser = async (createUserDTO) => {
     return newUser;
 }
 
-const updateUser = async (uid, updateUserDTO) => {
+const update = async (uid, updateUserDTO) => {
     const user = await User.findOne({ where: { uid: uid } });
     if(!user) throw new ApiError(`El usuario con el UID ${uid} no existe.`, "RESOURCE_NOT_FOUND");
 
@@ -59,7 +59,7 @@ const updateUser = async (uid, updateUserDTO) => {
     return user;
 }
 
-const deleteUser = async (uid) => {
+const remove = async (uid) => {
     const user = await User.findOne({ where: { uid: uid } });
     if(!user) throw new ApiError(`El usuario con el UID ${uid} no existe.`, "RESOURCE_NOT_FOUND");
 
@@ -67,7 +67,7 @@ const deleteUser = async (uid) => {
     return user;
 }
 
-const getUserByUid = async (uid) => {
+const getByUid = async (uid) => {
     const user = await User.findOne({ where: { uid: uid } });
     if(!user) {
         throw new ApiError(`El usuario con el UID ${uid} no existe.`, "RESOURCE_NOT_FOUND");
@@ -75,7 +75,9 @@ const getUserByUid = async (uid) => {
     return user;
 }
 
-const getAllUsers = async () => {
+const getAll = async () => {
     const users = await User.findAll();
     return users;
 }
+
+module.exports = { create, update, remove, getByUid, getAll };
