@@ -5,7 +5,7 @@ module.exports = (sequelize, Sequelize) => {
             primaryKey: true,
             autoIncrement: true,
             allowNull: false,
-            field: 'user_id'
+            field: 'id_user'
         },
         uid: {
             type: Sequelize.UUID,
@@ -15,7 +15,10 @@ module.exports = (sequelize, Sequelize) => {
         },
         rolId: {
             type: Sequelize.INTEGER,
-            references: { model: 'Rol', key: 'id_rol' },
+            references: { 
+                model: 'Role', 
+                key: 'id_role' 
+            },
             allowNull: false,
             field: 'rol_id'
         },
@@ -32,7 +35,7 @@ module.exports = (sequelize, Sequelize) => {
             field: 'username'
         },
         email: {
-            type: Sequelize.STIRNG(254),
+            type: Sequelize.STRING(254),
             allowNull: false,
             unique: true,
             validate: {
@@ -65,8 +68,8 @@ module.exports = (sequelize, Sequelize) => {
     });
 
     User.associate = (models) => {
-        User.belongsTo(models.Rol, { foreignKey: 'rol_id' });
+        User.belongsTo(models.Role, { foreignKey: 'rolId' });
     }
 
     return User;
-}
+};

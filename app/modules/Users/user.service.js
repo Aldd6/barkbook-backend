@@ -67,6 +67,16 @@ const remove = async (uid) => {
     return user;
 }
 
+const restore = async (uid) => {
+    const user = await User.findOne({
+        where: { uid: uid },
+        paranoid: false
+    });
+    if(!user) throw new ApiError(`El usuario con el UID ${uid} no existe.`, "RESOURCE_NOT_FOUND");
+    await user.restore();
+    return user;
+}
+
 const getByUid = async (uid) => {
     const user = await User.findOne({ where: { uid: uid } });
     if(!user) {
