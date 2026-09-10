@@ -6,3 +6,5 @@ const PermissionResponseDTO = z.object({
     permissionName: z.string(),
     permissionType: z.enum([...TYPE_TRANSACTION_ARRAY])
 });
+
+module.exports = PermissionResponseDTO;

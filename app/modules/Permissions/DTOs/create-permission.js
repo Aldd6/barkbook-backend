@@ -9,3 +9,5 @@ const CreatePermissionDTO = z.object({
          message: 'Permission type must be one of the following: ' + TYPE_TRANSACTION_ARRAY.join(', ') 
     })
 });
+
+module.exports = CreatePermissionDTO;

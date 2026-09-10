@@ -1,14 +1,11 @@
-class UserResponseDTO {
-    constructor(body) {
-        this.uid = body.uid;
-        this.rolId = body.rolId;
-        this.username = body.username;
-        this.email = body.email;
-        this.profileCompleted = body.profileCompleted;
-    }
+const z = require('zod');
 
-    static fromList(users) {
-        return users.map(user => new UserResponseDTO(user));
-    }
-}
+const UserResponseDTO = z.object({
+    uid: z.uuidv4(),
+    rolId: z.number(),
+    username: z.string().trim(),
+    email: z.email().trim(),
+    profileCompleted: z.boolean()
+});
+
 module.exports = UserResponseDTO;
