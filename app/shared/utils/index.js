@@ -40,6 +40,7 @@ dbConnection.sequelize = sequelize;
 dbConnection.User = require('../../modules/Users/user.model.js')(sequelize, Sequelize);
 dbConnection.Role = require('../../modules/Roles/role.model.js')(sequelize, Sequelize);
 dbConnection.Permission = require('../../modules/Permissions/permission.model.js')(sequelize, Sequelize);
+dbConnection.Worklog = require('../../modules/Worklog/worklog.model.js')(sequelize, Sequelize);
 
 //Ejecucion de asociaciones embebidas en los modelos
 Object.keys(dbConnection).forEach(model => {
