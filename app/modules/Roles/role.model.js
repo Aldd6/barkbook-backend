@@ -10,13 +10,8 @@ module.exports = (sequelize, Sequelize) => {
         roleName: {
             type: Sequelize.STRING(150),
             allowNull: false,
-            field: 'role_name'
-        },
-        roleActive: {
-            type: Sequelize.BOOLEAN,
-            allowNull: false,
-            defaultValue: true,
-            field: 'role_active'
+            field: 'role_name',
+            unique: true
         }
     });
 

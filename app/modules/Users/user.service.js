@@ -39,7 +39,7 @@ const update = async (uid, updateUserDTO) => {
     if(updateUserDTO.email || updateUserDTO.username) {
         const conditions = [];
         if(updateUserDTO.email && updateUserDTO.email !== user.email) conditions.push({ email: updateData.email });
-        if(updateUserDTO.username && updateUserDTO !== user.username) conditions.push({ username: updateData.user });
+        if(updateUserDTO.username && updateUserDTO.username !== user.username) conditions.push({ username: updateData.username });
         if(conditions.length > 0) {
             const existsDuplicated = await User.findOne({
                 where: {

@@ -3,7 +3,7 @@ const Permission = dbConnection.Permission;
 const ApiError = require('../../shared/utils/errors.js');
 
 const create = async (createPermissionDTO) => {
-    const newPermission = await Permission.create(...createPermissionDTO);
+    const newPermission = await Permission.create(createPermissionDTO);
     return newPermission;
 }
 
@@ -29,3 +29,4 @@ const getAll = async () => {
     return permissions;
 }
 
+module.exports = { create, remove, restore, getAll }

@@ -1,6 +1,6 @@
 const { HttpError, ApiError, ERROR_MAP } = require('../utils/errors.js');
 
-export function errorHandler(err, req, res, next) {
+const errorHandler = (err, req, res, next) => {
     console.log(`[ERROR]: ${err.stack || err.message}`);
 
     if(err instanceof ApiError) {
@@ -33,3 +33,5 @@ export function errorHandler(err, req, res, next) {
         ...(isDevelopment && { stack: err.stack })
     });
 }
+
+module.exports = errorHandler;

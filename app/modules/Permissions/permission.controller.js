@@ -4,7 +4,7 @@ const PermissionResponseDTO = require('./DTOs/permission-response.js');
 
 const create = async (req, res, next) => {
     try {
-        const requestDTO = new PermissionCreateDTO(req.body);
+        const requestDTO = PermissionCreateDTO.parse(req.body);
         const newPermission = await permissionService.create(requestDTO);
         const responseDTO = PermissionResponseDTO.parse({
             id: newPermission.id,
@@ -24,7 +24,7 @@ const create = async (req, res, next) => {
 
 const remove = async (req, res, next) => {
     try {
-        const { permissionId } = req.query;
+        const { permissionId } = req.params;
         const permissionToRemove = await permissionService.remove(permissionId);
         const responseDTO = PermissionResponseDTO.parse({
             id: permissionToRemove.id,
@@ -44,7 +44,7 @@ const remove = async (req, res, next) => {
 
 const restore = async (req, res, next) => {
     try {
-        const { permissionId } = req.query;
+        const { permissionId } = req.params;
         const permissionToRestore = await permissionService.restore(permissionId);
         const responseDTO = PermissionResponseDTO.parse({
             id: permissionToRestore.id,
@@ -80,3 +80,5 @@ const getAll = async (req, res, next) => {
         next(error);
     }
 };
+
+module.exports = { create, remove, restore, getAll };

@@ -27,7 +27,7 @@ const create = async (req, res, next) => {
 
 const update = async (req, res, next) => {
     try {
-        const { uid } = req.query;
+        const { uid } = req.params;
         const requestDTO = UpdateUserDTO.parse(req.body);
 
         const updatedUser = await userService.update(uid, requestDTO);

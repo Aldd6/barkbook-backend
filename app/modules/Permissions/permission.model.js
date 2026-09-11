@@ -12,7 +12,8 @@ module.exports = (sequelize, Sequelize) => {
         permissionName: {
             type: Sequelize.STRING(150),
             allowNull: false,
-            field: 'permission_name'
+            field: 'permission_name',
+            unique: true
         },
         permissionType: {
             type: Sequelize.ENUM(...TYPE_TRANSACTION_ARRAY),
