@@ -95,8 +95,7 @@ module.exports = (sequelize, Sequelize) => {
     },
     {
         validate: {
-            // defensa en profundidad: la misma regla que ya valida el DTO
-            // (el nitNumber es obligatorio unicamente si nitOrCf es true).
+            // el nitNumber es obligatorio unicamente si nitOrCf es true.
             nitConsistency() {
                 if(this.nitOrCf && !this.nitNumber) {
                     throw new Error("El numero de NIT es obligatorio cuando el cliente factura con NIT.");
@@ -108,6 +107,7 @@ module.exports = (sequelize, Sequelize) => {
     Customer.associate = (models) => {
         Customer.belongsTo(models.User, { foreignKey: 'userId' });
         Customer.belongsTo(models.City, { foreignKey: 'cityId' });
+        Customer.hasMany(models.EmergencyContact, { foreignKey: 'customerId' });
     }
 
     return Customer;

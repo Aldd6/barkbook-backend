@@ -46,6 +46,7 @@ dbConnection.City = require('../../modules/Address/city.model.js')(sequelize, Se
 dbConnection.Branch = require('../../modules/Branch/branch.model.js')(sequelize, Sequelize);
 dbConnection.Employee = require('../../modules/Employee/employee.model.js')(sequelize, Sequelize);
 dbConnection.Customer = require('../../modules/Customer/customer.model.js')(sequelize, Sequelize);
+dbConnection.EmergencyContact = require('../../modules/EmergencyContact/emergencyContact.model.js')(sequelize, Sequelize);
 
 //Ejecucion de asociaciones embebidas en los modelos
 Object.keys(dbConnection).forEach(model => {
