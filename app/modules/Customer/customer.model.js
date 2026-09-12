@@ -108,6 +108,7 @@ module.exports = (sequelize, Sequelize) => {
         Customer.belongsTo(models.User, { foreignKey: 'userId' });
         Customer.belongsTo(models.City, { foreignKey: 'cityId' });
         Customer.hasMany(models.EmergencyContact, { foreignKey: 'customerId' });
+        Customer.hasMany(models.Pet, { foreignKey: 'customerId' });
     }
 
     return Customer;

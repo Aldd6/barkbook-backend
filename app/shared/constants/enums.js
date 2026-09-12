@@ -10,7 +10,7 @@ const METHOD_TRANSACTION = Object.freeze({
     POST: "POST",
     PUT: "PUT",
     DELETE: "DELETE"
-})
+});
 
 const KINSHIP = Object.freeze({
     PDR: "PADRE/MADRE",
@@ -20,6 +20,50 @@ const KINSHIP = Object.freeze({
     PRJ: "PAREJA",
     ESP: "ESPOSO(A)",
     HJO: "HIJO(A)"
+});
+
+const PET_SPECIES = Object.freeze({
+    FELINO: "FELINO",
+    CANINO: "CANINO"
+});
+
+const SEX = Object.freeze({
+    MACHO: "MACHO",
+    HEMBRA: "HEMBRA"
+});
+
+const PET_SIZE = Object.freeze({
+    PEQUENIO: "PEQUENIO",
+    MEDIANO: "MEDIANO",
+    GRANDE: "GRANDE",
+    EXTRA: "EXTRA"
+});
+
+const UNIT_MEASURE_WEIGHT_PET = Object.freeze({
+    KILOGRAMOS: "KILOGRAMOS",
+    LIBRAS: "LIBRAS",
+    GRAMOS: "GRAMOS"
+});
+
+const VACCINE_USE = Object.freeze({
+    INM: "INMUNIZACION",
+    RFE: "REFUERZO"
+});
+
+const DIET_TYPE = Object.freeze({
+    CRCS: "CROQUETAS/ALIMENTO SECO",
+    ALHM: "ALIMENTO HUMEDO",
+    BARF: "ALIMENTO NATURAL",
+    ALHB: "ALIMENTACION HIBRIDA"
+});
+
+const UNIT_MEASURE_SERVING_PET = Object.freeze({
+    TAZAS: "TAZAS",
+    CUCHARADAS: "CUCHARADAS",
+    GRAMOS: "GRAMOS",
+    MILIGRAMOS: "MILIGRAMOS",
+    LIBRAS: "LIBRAS",
+    ONZAS: "ONZAS"
 })
 
 module.exports = {
@@ -28,5 +72,19 @@ module.exports = {
     METHOD_TRANSACTION,
     METHOD_TRANSACTION_ARRAY: Object.values(METHOD_TRANSACTION),
     KINSHIP,
-    KINSHIP_ARRAY: Object.values(KINSHIP)
+    KINSHIP_ARRAY: Object.values(KINSHIP),
+    PET_SPECIES,
+    PET_SPECIES_ARRAY: Object.values(PET_SPECIES),
+    SEX,
+    SEX_ARRAY: Object.values(SEX),
+    PET_SIZE,
+    PET_SIZE_ARRAY: Object.values(PET_SIZE),
+    UNIT_MEASURE_WEIGHT_PET,
+    UNIT_MEASURE_WEIGHT_PET_ARRAY: Object.values(UNIT_MEASURE_WEIGHT_PET),
+    VACCINE_USE,
+    VACCINE_USE_ARRAY: Object.values(VACCINE_USE),
+    DIET_TYPE,
+    DIET_TYPE_ARRAY: Object.values(DIET_TYPE),
+    UNIT_MEASURE_SERVING_PET,
+    UNIT_MEASURE_SERVING_PET_ARRAY: Object.values(UNIT_MEASURE_SERVING_PET)
 }

@@ -47,6 +47,10 @@ dbConnection.Branch = require('../../modules/Branch/branch.model.js')(sequelize,
 dbConnection.Employee = require('../../modules/Employee/employee.model.js')(sequelize, Sequelize);
 dbConnection.Customer = require('../../modules/Customer/customer.model.js')(sequelize, Sequelize);
 dbConnection.EmergencyContact = require('../../modules/EmergencyContact/emergencyContact.model.js')(sequelize, Sequelize);
+dbConnection.Pet = require('../../modules/Pet/pet.model.js')(sequelize, Sequelize);
+dbConnection.PetVaccine = require('../../modules/Pet/petVaccine.model.js')(sequelize, Sequelize);
+dbConnection.PetSanity = require('../../modules/Pet/petSanity.model.js')(sequelize, Sequelize);
+dbConnection.PetDiet = require('../../modules/Pet/petDiet.model.js')(sequelize, Sequelize);
 
 //Ejecucion de asociaciones embebidas en los modelos
 Object.keys(dbConnection).forEach(model => {
