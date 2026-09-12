@@ -1,6 +1,6 @@
 const dbConnection = require('../../shared/utils/index.js');
 const Permission = dbConnection.Permission;
-const ApiError = require('../../shared/utils/errors.js');
+const { ApiError } = require('../../shared/utils/errors.js');
 
 const create = async (createPermissionDTO) => {
     const newPermission = await Permission.create(createPermissionDTO);

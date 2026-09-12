@@ -1,8 +1,7 @@
 const dbConnection = require('../../shared/utils/index.js');
 const Role = dbConnection.Role;
 const Permission = dbConnection.Permission;
-const ApiError = require('../../shared/utils/errors.js');
-const { includes } = require('zod');
+const { ApiError } = require('../../shared/utils/errors.js');
 const Op = dbConnection.Sequelize.Op;
 
 const create = async (CreateRoleDTO) => {

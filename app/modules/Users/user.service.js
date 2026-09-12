@@ -2,7 +2,7 @@ const dbConnection = require('../../shared/utils/index.js');
 const User = dbConnection.User;
 const Role = dbConnection.Role;
 const bcrypt = require('bcryptjs');
-const ApiError = require('../../shared/utils/errors.js');
+const { ApiError}  = require('../../shared/utils/errors.js');
 const Op = dbConnection.Sequelize.Op;
 
 const create = async (createUserDTO) => {
