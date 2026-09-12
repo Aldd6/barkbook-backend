@@ -30,6 +30,7 @@ module.exports = (sequelize, Sequelize) => {
     City.associate = (models) => {
         City.belongsTo(models.State, { foreignKey: 'stateId' });
         City.hasMany(models.Branch, { foreignKey: 'cityId' });
+        City.hasMany(models.Employee, { foreignKey: 'cityId' });
     }
 
     return City;

@@ -70,6 +70,7 @@ module.exports = (sequelize, Sequelize) => {
     User.associate = (models) => {
         User.belongsTo(models.Role, { foreignKey: 'rolId' });
         User.hasMany(models.Worklog, { foreignKey: 'userId' });
+        User.hasOne(models.Employee, { foreignKey: 'userId' });
     }
 
     return User;
