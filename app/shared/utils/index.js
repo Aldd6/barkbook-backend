@@ -43,6 +43,7 @@ dbConnection.Permission = require('../../modules/Permissions/permission.model.js
 dbConnection.Worklog = require('../../modules/Worklog/worklog.model.js')(sequelize, Sequelize);
 dbConnection.State = require('../../modules/Address/state.model.js')(sequelize, Sequelize);
 dbConnection.City = require('../../modules/Address/city.model.js')(sequelize, Sequelize);
+dbConnection.Branch = require('../../modules/Branch/branch.model.js')(sequelize, Sequelize);
 
 //Ejecucion de asociaciones embebidas en los modelos
 Object.keys(dbConnection).forEach(model => {
