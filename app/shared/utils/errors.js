@@ -23,6 +23,7 @@ const ERROR_MAP = {
     UNAUTHORIZED_ACCESS: { statusCode: 403, defaultMessage: "No autorizado." },
     RESOURCE_CONFLICT: { statusCode: 409, defaultMessage: "El valor ingresado ya existe o fue tomado." },
     RATE_LIMIT_EXCEEDED: { statusCode: 429, defaultMessage: "Demasiadas peticiones." },
+    PAYMENT_FAILED: { statusCode: 402, defaultMessage: "El pago no pudo ser procesado." },
     INTERNAL_ERROR: { statusCode: 500, defaultMessage: "Error interno del sistema." },
     DATABASE_ERROR: { statusCode: 500, defaultMessage: "Error de la base de datos."}
 }

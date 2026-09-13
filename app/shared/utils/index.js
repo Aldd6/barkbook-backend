@@ -54,6 +54,9 @@ dbConnection.PetDiet = require('../../modules/Pet/petDiet.model.js')(sequelize, 
 dbConnection.RoomType = require('../../modules/Room/roomType.model.js')(sequelize, Sequelize);
 dbConnection.RoomBranch = require('../../modules/Room/roomBranch.model.js')(sequelize, Sequelize);
 dbConnection.RoomInventory = require('../../modules/Room/roomInventory.model.js')(sequelize, Sequelize);
+dbConnection.Booking = require('../../modules/Booking/booking.model.js')(sequelize, Sequelize);
+dbConnection.BookingPet = require('../../modules/Booking/bookingPet.model.js')(sequelize, Sequelize);
+dbConnection.BookingBill = require('../../modules/Booking/bookingBill.model.js')(sequelize, Sequelize);
 
 //Ejecucion de asociaciones embebidas en los modelos
 Object.keys(dbConnection).forEach(model => {
