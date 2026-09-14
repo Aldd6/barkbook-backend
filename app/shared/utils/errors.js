@@ -25,7 +25,8 @@ const ERROR_MAP = {
     RATE_LIMIT_EXCEEDED: { statusCode: 429, defaultMessage: "Demasiadas peticiones." },
     PAYMENT_FAILED: { statusCode: 402, defaultMessage: "El pago no pudo ser procesado." },
     INTERNAL_ERROR: { statusCode: 500, defaultMessage: "Error interno del sistema." },
-    DATABASE_ERROR: { statusCode: 500, defaultMessage: "Error de la base de datos."}
+    DATABASE_ERROR: { statusCode: 500, defaultMessage: "Error de la base de datos." },
+    REDIS_ERROR: { statusCode: 500, defaultMessage: "Error de redis." }
 }
 
 module.exports = { ApiError, HttpError, ERROR_MAP }

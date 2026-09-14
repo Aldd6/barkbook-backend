@@ -1,7 +1,6 @@
 const z = require('zod');
 
-const CreateUserDTO = z.object({
-    rolId: z.number(),
+const SignUpDTO = z.object({
     username: z.string().trim()
         .min(3, { message: "El nombre de usuario debe tener al menos 3 caracteres." })
         .max(50, { message: "El nombre de usuario no puede exceder los 50 caracteres." })
@@ -12,4 +11,4 @@ const CreateUserDTO = z.object({
     password: z.string().trim()
 });
 
-module.exports = CreateUserDTO;
+module.exports = SignUpDTO;
