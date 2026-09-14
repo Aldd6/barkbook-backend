@@ -68,37 +68,13 @@ const signup = async (SignUpDTO) => {
     return newUser;
 }
 
-const signin = async (SignInDTO) => {
-    const { username, email, password } = SignInDTO;
+const userWithProfileInclude = [
+    { model: Customer, required: false },
+    { model: Employee, required: false },
+    { model: Role }
+];
 
-    const conditions = [];
-    if(username) conditions.push({ username });
-    if(email) conditions.push({ email });
-
-    // unscoped: el defaultScope del modelo excluye hash_password, y aqui se necesita para comparar
-    const user = await User.unscoped().findOne({
-        include: [
-            { model: Customer, require: false },
-            { model: Employee, require: false },
-            { model: Role }
-        ],
-        where: { 
-            [Op.and]: [
-                { [Op.or]: conditions },
-                {
-                    [Op.or]: [
-                        { '$Customer.userId$': { [Op.ne]: null } },
-                        { '$Employee.userId$': { [Op.ne]: null } }
-                    ]
-                }
-            ]
-
-        },
-    });
-    if(!user) throw new ApiError(`Credenciales invalidas.`, "UNAUTHENTICATED");
-    const validPassword = await bcrypt.compare(password, user.hashPassword);
-    if(!validPassword) throw new ApiError(`Credenciales invalidas.`, "UNAUTHENTICATED");
-
+const buildTokenPayload = (user) => {
     const tokenPayload = {
         id: user.id,
         username: user.username,
@@ -115,6 +91,12 @@ const signin = async (SignInDTO) => {
         tokenPayload.lastname = user.Employee.lastname;
     }
 
+    return tokenPayload;
+}
+
+const issueTokens = async (user) => {
+    const tokenPayload = buildTokenPayload(user);
+
     //token de acceso inical
     const accessToken = jwt.sign(tokenPayload, authConfig.accessSecret, {
         expiresIn: authConfig.accessExpiresIn
@@ -125,9 +107,35 @@ const signin = async (SignInDTO) => {
     });
     await loadToRedis(user.id, refreshToken, authConfig.cookieMaxAge);
 
-    // el controller se encarga de setear refreshToken como cookie httpOnly
-    // y devolver accessToken en el body
     return { accessToken, refreshToken };
 }
 
-module.exports = { signup, signin };
+const signin = async (SignInDTO) => {
+    const { username, email, password } = SignInDTO;
+
+    const conditions = [];
+    if(username) conditions.push({ username });
+    if(email) conditions.push({ email });
+
+    // unscoped: el defaultScope del modelo excluye hash_password, y aqui se necesita para comparar.
+    const user = await User.unscoped().findOne({
+        include: userWithProfileInclude,
+        where: { [Op.or]: conditions }
+    });
+    if(!user) throw new ApiError(`Credenciales invalidas.`, "UNAUTHENTICATED");
+    const validPassword = await bcrypt.compare(password, user.hashPassword);
+    if(!validPassword) throw new ApiError(`Credenciales invalidas.`, "UNAUTHENTICATED");
+
+    return issueTokens(user);
+}
+
+const reissueTokens = async (userId) => {
+    const user = await User.findByPk(userId, {
+        include: userWithProfileInclude
+    });
+    if(!user) throw new ApiError(`El usuario con el ID ${userId} no existe.`, "RESOURCE_NOT_FOUND");
+
+    return issueTokens(user);
+}
+
+module.exports = { signup, signin, reissueTokens };

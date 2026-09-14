@@ -1,7 +1,9 @@
 const customerService = require('./customer.service.js');
+const authService = require('../Auth/auth.service.js');
 const CreateCustomerDTO = require('./DTOs/create-customer.js');
 const UpdateCustomerDTO = require('./DTOs/update-customer.js');
 const CustomerResponseDTO = require('./DTOs/customer-response.js');
+const { setRefreshTokenCookie } = require('../../shared/utils/cookies.js');
 
 const toResponseDTO = (customer) => CustomerResponseDTO.parse({
     id: customer.id,
@@ -21,13 +23,23 @@ const toResponseDTO = (customer) => CustomerResponseDTO.parse({
 
 const create = async (req, res, next) => {
     try {
-        const requestDTO = CreateCustomerDTO.parse(req.body);
+        // el perfil de Customer solo lo completa el propio usuario autenticado: se ignora
+        // cualquier userId que venga en el body para que nadie pueda completar el perfil
+        // (y llevarse un token) de otra cuenta.
+        const requestDTO = CreateCustomerDTO.parse({ ...req.body, userId: req.user.id });
         const newCustomer = await customerService.create(requestDTO);
+
+        // completar el perfil cambia lo que lleva el token (profileCompleted, name,
+        // lastname), asi que se reemite de una vez en lugar de esperar a que expire.
+        const { accessToken, refreshToken } = await authService.reissueTokens(newCustomer.userId);
+        setRefreshTokenCookie(res, refreshToken);
+
         return res.status(201).json({
             success: true,
             status: 201,
             message: "Cliente creado exitosamente.",
-            customer: toResponseDTO(newCustomer)
+            customer: toResponseDTO(newCustomer),
+            accessToken
         });
     } catch(error) {
         next(error);

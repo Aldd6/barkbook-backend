@@ -2,6 +2,7 @@ const authService = require('./auth.service.js');
 const SignInDTO = require('./DTOs/sign-in.js');
 const SignUpDTO = require('./DTOs/sign-up.js');
 const SignUpResponseDTO = require('./DTOs/sign-up-response.js');
+const { setRefreshTokenCookie } = require('../../shared/utils/cookies.js');
 
 const signup = async (req, res, next) => {
     try {
@@ -25,7 +26,17 @@ const signup = async (req, res, next) => {
 const signin = async (req, res, next) => {
     try {
         const requestDTO = SignInDTO.parse(req.body);
-        const signin = await authService.signin(requestDTO);
-        
+        const { accessToken, refreshToken } = await authService.signin(requestDTO);
+        setRefreshTokenCookie(res, refreshToken);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Inicio de sesion exitoso.",
+            accessToken
+        });
+    } catch(error) {
+        next(error);
     }
-}
+};
+
+module.exports = { signup, signin };
