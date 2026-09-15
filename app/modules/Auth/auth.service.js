@@ -38,6 +38,15 @@ const loadToRedis = async (key, value, TTL = defaultTTL) => {
     }
 }
 
+const readFromRedis = async (key) => {
+    try {
+        const client = await getRedisClient();
+        return await client.get(String(key));
+    } catch (err) {
+        throw new ApiError(`Error al conectar con Redis: ${err.message}`, "REDIS_ERROR");
+    }
+}
+
 // punto de creacion de usuario para clientes (Customer) 
 // create en user.services es para creacion de usuarios operativos
 const signup = async (SignUpDTO) => {
@@ -138,4 +147,29 @@ const reissueTokens = async (userId) => {
     return issueTokens(user);
 }
 
-module.exports = { signup, signin, reissueTokens };
+// renueva el access token (y rota el refresh) a partir del refresh token que llega en
+// la cookie httpOnly. El refresh solo es valido si, ademas de que su firma/expiracion
+// esten bien, coincide con el que esta guardado en redis para ese usuario: eso permite
+// invalidarlo (logout) y evita que uno viejo se reutilice una vez que ya se roto.
+const refresh = async (refreshToken) => {
+    if(!refreshToken) throw new ApiError('No se proporciono el token de refresco.', "UNAUTHENTICATED");
+
+    let payload;
+    try {
+        payload = jwt.verify(refreshToken, authConfig.refreshSecret);
+    } catch(err) {
+        throw new ApiError('Token de refresco invalido o vencido.', "UNAUTHENTICATED");
+    }
+
+    const storedToken = await readFromRedis(payload.id);
+    if(!storedToken || storedToken !== refreshToken) {
+        throw new ApiError('Token de refresco invalido o vencido.', "UNAUTHENTICATED");
+    }
+
+    const user = await User.findByPk(payload.id, { include: userWithProfileInclude });
+    if(!user) throw new ApiError('Token de refresco invalido o vencido.', "UNAUTHENTICATED");
+
+    return issueTokens(user);
+}
+
+module.exports = { signup, signin, reissueTokens, refresh };
