@@ -1,7 +1,23 @@
+const { ZodError } = require('zod');
 const { HttpError, ApiError, ERROR_MAP } = require('../utils/errors.js');
 
 const errorHandler = (err, req, res, next) => {
     console.log(`[ERROR]: ${err.stack || err.message}`);
+
+    if(err instanceof ZodError) {
+        const { statusCode, defaultMessage } = ERROR_MAP.INVALID_INPUT;
+        const details = err.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+        }));
+
+        return res.status(statusCode).json({
+            success: false,
+            status: statusCode,
+            message: defaultMessage,
+            details
+        });
+    }
 
     if(err instanceof ApiError) {
         const translate = ERROR_MAP[err.flag];

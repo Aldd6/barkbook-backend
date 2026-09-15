@@ -2,7 +2,7 @@ const authService = require('./auth.service.js');
 const SignInDTO = require('./DTOs/sign-in.js');
 const SignUpDTO = require('./DTOs/sign-up.js');
 const SignUpResponseDTO = require('./DTOs/sign-up-response.js');
-const { setRefreshTokenCookie, REFRESH_TOKEN_COOKIE } = require('../../shared/utils/cookies.js');
+const { setRefreshTokenCookie, clearRefreshTokenCookie, REFRESH_TOKEN_COOKIE } = require('../../shared/utils/cookies.js');
 
 const signup = async (req, res, next) => {
     try {
@@ -55,4 +55,19 @@ const refresh = async (req, res, next) => {
     }
 };
 
-module.exports = { signup, signin, refresh };
+const signout = async (req, res, next) => {
+    try {
+        const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+        await authService.signout(refreshToken);
+        clearRefreshTokenCookie(res);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Sesion cerrada exitosamente."
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+module.exports = { signup, signin, refresh, signout };

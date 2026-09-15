@@ -31,7 +31,7 @@ const loadToRedis = async (key, value, TTL = defaultTTL) => {
     try {
         const client = await getRedisClient();
         await client.set(String(key), value, {
-            EX: Math.floor(TTL / 1000) // EX espera segundos; TTL llega en milisegundos
+            EX: Math.floor(TTL / 1000) // EX espera segundos; TTL llega en milisegundos ¿puedo usar PX para evitar convertir a segundos?
         });
     } catch (err) {
         throw new ApiError(`Error al conectar con Redis: ${err.message}`, "REDIS_ERROR");
@@ -42,6 +42,15 @@ const readFromRedis = async (key) => {
     try {
         const client = await getRedisClient();
         return await client.get(String(key));
+    } catch (err) {
+        throw new ApiError(`Error al conectar con Redis: ${err.message}`, "REDIS_ERROR");
+    }
+}
+
+const deleteFromRedis = async (key) => {
+    try {
+        const client = await getRedisClient();
+        await client.del(String(key));
     } catch (err) {
         throw new ApiError(`Error al conectar con Redis: ${err.message}`, "REDIS_ERROR");
     }
@@ -147,10 +156,6 @@ const reissueTokens = async (userId) => {
     return issueTokens(user);
 }
 
-// renueva el access token (y rota el refresh) a partir del refresh token que llega en
-// la cookie httpOnly. El refresh solo es valido si, ademas de que su firma/expiracion
-// esten bien, coincide con el que esta guardado en redis para ese usuario: eso permite
-// invalidarlo (logout) y evita que uno viejo se reutilice una vez que ya se roto.
 const refresh = async (refreshToken) => {
     if(!refreshToken) throw new ApiError('No se proporciono el token de refresco.', "UNAUTHENTICATED");
 
@@ -172,4 +177,22 @@ const refresh = async (refreshToken) => {
     return issueTokens(user);
 }
 
-module.exports = { signup, signin, reissueTokens, refresh };
+// invalida el refresh token en redis para que no pueda reutilizarse .
+// si el token ya no es valido (vencido, mal formado o no coincide con el guardado) no hay nada que invalidar.
+const signout = async (refreshToken) => {
+    if(!refreshToken) return;
+
+    let payload;
+    try {
+        payload = jwt.verify(refreshToken, authConfig.refreshSecret);
+    } catch(err) {
+        return;
+    }
+
+    const storedToken = await readFromRedis(payload.id);
+    if(storedToken === refreshToken) {
+        await deleteFromRedis(payload.id);
+    }
+}
+
+module.exports = { signup, signin, reissueTokens, refresh, signout };
