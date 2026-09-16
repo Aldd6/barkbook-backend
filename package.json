@@ -8,7 +8,8 @@
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed:address": "node app/modules/Address/address.seed.js",
-    "seed:auth": "node app/modules/Auth/auth.seed.js"
+    "seed:auth": "node app/modules/Auth/auth.seed.js",
+    "create:admin": "node app/modules/Auth/create-admin.seed.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

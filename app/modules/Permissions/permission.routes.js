@@ -2,9 +2,11 @@ const { Router } = require('express');
 const permissionController = require('./permission.controller.js');
 const verifyToken = require('../../shared/middlewares/auth.jwt.js');
 const authorize = require('../../shared/middlewares/authorize.js');
+const registerWorklog = require('../../shared/middlewares/worklog.register.js');
 
 const router = Router();
-const onlyAdmin = [verifyToken, authorize('Gestionar roles y permisos')];
+const PERMISSION_ENTITY_NAME = 'Permission'
+const onlyAdmin = [verifyToken, authorize('Gestionar roles y permisos'), registerWorklog(PERMISSION_ENTITY_NAME)];
 
 router.post('/', onlyAdmin, permissionController.create);
 router.get('/', onlyAdmin, permissionController.getAll);

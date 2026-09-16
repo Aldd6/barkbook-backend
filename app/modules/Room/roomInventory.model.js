@@ -18,9 +18,6 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: false,
             field: 'room_branch_id'
         },
-        // Generado por roomInventory.service.js::generateBulk, nunca a mano:
-        // prefijo del RoomType + un consecutivo con padding segun
-        // maximumQuantity de la RoomBranch (ej. "STD001").
         roomNumber: {
             type: Sequelize.STRING(20),
             allowNull: false,
