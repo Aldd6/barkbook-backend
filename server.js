@@ -14,7 +14,7 @@ db.sequelize.authenticate()
         app.listen(PORT, () => {
             console.log(`[SERVER] Servidor corriendo en el puerto ${PORT}.`);
         });
-        startBookingCronJobs();
+        //startBookingCronJobs();
     })
     .catch((err) => {
         console.error('[DB] No se pudo conectar a la base de datos:', err.message);
@@ -22,5 +22,5 @@ db.sequelize.authenticate()
     });
 
 // detiene el cron limpiamente para no dejar el proceso colgado al cerrar el servidor
-process.on('SIGTERM', stopBookingCronJobs);
-process.on('SIGINT', stopBookingCronJobs);
+//process.on('SIGTERM', stopBookingCronJobs);
+//process.on('SIGINT', stopBookingCronJobs);
