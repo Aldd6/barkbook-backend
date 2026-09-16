@@ -71,7 +71,7 @@ const signup = async (SignUpDTO) => {
     if(userExistsAlready) throw new ApiError('El usuario o correo electronico ingresados ya estan tomados.', "RESOURCE_CONFLICT");
 
     const customerRole = await Role.findOne({
-        where: { roleName: 'Customer' }
+        where: { roleName: 'Cliente' }
     });
     if(!customerRole) throw new ApiError('El rol de usuario para cliente no pudo ser encontrado.', "RESOURCE_NOT_FOUND");
 
