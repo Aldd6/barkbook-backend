@@ -5,10 +5,10 @@ const verifyToken = require('../../shared/middlewares/auth.jwt.js');
 const router = Router();
 
 router.post('/', verifyToken, customerController.create);
-router.get('/', customerController.getAll);
-router.get('/:id', customerController.getById);
-router.put('/:id', customerController.update);
-router.delete('/:id', customerController.remove);
-router.patch('/:id/restore', customerController.restore);
+router.get('/', verifyToken, customerController.getAll);
+router.get('/:id', verifyToken, customerController.getById);
+router.put('/:id', verifyToken, customerController.update);
+router.delete('/:id', verifyToken, customerController.remove);
+router.patch('/:id/restore', verifyToken, customerController.restore);
 
 module.exports = router;
