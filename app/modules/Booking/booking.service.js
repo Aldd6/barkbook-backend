@@ -65,8 +65,30 @@ const create = async (createBookingDTO) => {
             throw new ApiError(`Todas las mascotas de la reserva deben ser de la especie admitida por este tipo de habitacion (${roomType.speciesType}).`, "INVALID_INPUT");
         }
 
-        // Disponibilidad: cuenta reservas activas de esta misma RoomBranch
-        // cuyo rango de fechas se traslape con el solicitado.
+        // Una mascota no puede tener dos reservas activas (PDCN/CNFD/ENES) cuyo rango de fechas se traslape, sin importar la sede/habitacion.
+        const overlappingPetBookings = await BookingPet.findAll({
+            where: { petId: { [Op.in]: uniquePetIds } },
+            include: [{
+                model: Booking,
+                where: {
+                    bookingStatus: { [Op.in]: ACTIVE_STATUSES },
+                    checkInDate: { [Op.lt]: checkOutDate },
+                    checkOutDate: { [Op.gt]: checkInDate }
+                },
+                required: true
+            }],
+            transaction
+        });
+        if(overlappingPetBookings.length > 0) {
+            const conflictingPetIds = [...new Set(overlappingPetBookings.map(bookingPet => bookingPet.petId))];
+            const conflictingPetNames = pets
+                .filter(pet => conflictingPetIds.includes(pet.id))
+                .map(pet => pet.name)
+                .join(', ');
+            throw new ApiError(`La(s) siguiente(s) mascota(s) ya tienen una reserva activa que se traslapa con las fechas solicitadas: ${conflictingPetNames}.`, "RESOURCE_CONFLICT");
+        }
+
+        // Disponibilidad: cuenta reservas activas de esta misma RoomBranch cuyo rango de fechas se traslape con el solicitado.
         const overlappingCount = await Booking.count({
             where: {
                 branchRoomId,

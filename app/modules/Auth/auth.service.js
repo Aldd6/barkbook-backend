@@ -31,7 +31,7 @@ const loadToRedis = async (key, value, TTL = defaultTTL) => {
     try {
         const client = await getRedisClient();
         await client.set(String(key), value, {
-            EX: Math.floor(TTL / 1000) // EX espera segundos; TTL llega en milisegundos ¿puedo usar PX para evitar convertir a segundos?
+            PX: TTL // TTL ya llega en milisegundos, PX evita la conversion a segundos que pedia EX
         });
     } catch (err) {
         throw new ApiError(`Error al conectar con Redis: ${err.message}`, "REDIS_ERROR");

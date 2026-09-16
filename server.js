@@ -6,6 +6,10 @@ const PORT = process.env.PORT || 3000;
 db.sequelize.authenticate()
     .then(() => {
         console.log('[DB] Conexion a la base de datos establecida correctamente.');
+        const forceSync = false;
+        db.sequelize.sync({force: forceSync}).then(() => {
+            console.log(`[DB] Sync con la base de datos: ${forceSync}`);
+        });
         app.listen(PORT, () => {
             console.log(`[SERVER] Servidor corriendo en el puerto ${PORT}.`);
         });

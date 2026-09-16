@@ -6,15 +6,18 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
-const mainRouter = require('./app/routes/index.js');
+const mainRouter = require('./app/routes/routes.js');
 const errorHandler = require('./app/shared/middlewares/errorHandler.js');
 
 const app = express();
 
+
+
 // credentials:true es necesario porque el refresh token viaja en una cookie httpOnly
 app.use(cors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
-    credentials: true
+    origin: 'http://localhost:4200',
+    credentials: true,
+    optionsSuccessStatus: 200
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -30,7 +33,7 @@ app.use((req, res) => {
     });
 });
 
-// siempre al final: captura los errores propagados con next(error)
+// captura los errores propagados con next(error)
 app.use(errorHandler);
 
 module.exports = app;
