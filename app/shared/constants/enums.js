@@ -93,6 +93,11 @@ const MOVEMENT_TYPE = Object.freeze({
     CARGO: "CARGO",
     ABONO: "ABONO",
     REEMBOLSO: "REEMBOLSO"
+});
+
+const CHECK_IN_STATUS = Object.freeze({
+    COMPLETADO: "COMPLETADO",
+    CANCELADO: "CANCELADO"
 })
 
 module.exports = {
@@ -123,5 +128,7 @@ module.exports = {
     PAYMENT_METHOD,
     PAYMENT_METHOD_ARRAY: Object.values(PAYMENT_METHOD),
     MOVEMENT_TYPE,
-    MOVEMENT_TYPE_ARRAY: Object.values(MOVEMENT_TYPE)
+    MOVEMENT_TYPE_ARRAY: Object.values(MOVEMENT_TYPE),
+    CHECK_IN_STATUS,
+    CHECK_IN_STATUS_ARRAY: Object.values(CHECK_IN_STATUS)
 }

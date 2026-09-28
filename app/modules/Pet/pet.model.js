@@ -98,6 +98,7 @@ module.exports = (sequelize, Sequelize) => {
         Pet.hasMany(models.PetSanity, { foreignKey: 'petId' });
         Pet.hasMany(models.PetDiet, { foreignKey: 'petId' });
         Pet.hasMany(models.BookingPet, { foreignKey: 'petId' });
+        Pet.hasMany(models.CheckInPet, { foreignKey: 'petId' });
     }
 
     return Pet;
