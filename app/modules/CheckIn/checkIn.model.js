@@ -16,6 +16,7 @@ module.exports = (sequelize, Sequelize) => {
                 key: 'id_booking'
             },
             allowNull: false,
+            unique: true,
             field: 'booking_id'
         },
         checkInDate: {
