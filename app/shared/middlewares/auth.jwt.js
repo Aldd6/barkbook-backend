@@ -1,12 +1,15 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/auth.js');
+const { ApiError } = require('../utils/errors.js');
 
 const verifyToken = (req, res, next) => {
-    let token = req.headers["x-access-token"] || req.headers["Authorization"];
+    // los headers de node llegan siempre en minuscula, "Authorization" nunca hacia match
+    let token = req.headers["x-access-token"] || req.headers["authorization"];
     if(token && token.startsWith("Bearer ")) token = token.slice(7);
-    if(!token) res.status(403).send({error: "Acceso Denegado. Token de sesion no proporcionado."});
+    if(!token) return next(new ApiError('Acceso denegado. Token de sesion no proporcionado.', "UNAUTHENTICATED"));
+
     jwt.verify(token, config.accessSecret, (err, decoded) => {
-        if(err) return res.status(401).send({error: "No autorizado. Token de sesion invalido o vencido."});
+        if(err) return next(new ApiError('No autorizado. Token de sesion invalido o vencido.', "UNAUTHENTICATED"));
         req.user = decoded; //inyeccion de 'claims' de usuario
         next();
     });
