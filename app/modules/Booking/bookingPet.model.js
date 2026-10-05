@@ -39,6 +39,7 @@ module.exports = (sequelize, Sequelize) => {
     BookingPet.associate = (models) => {
         BookingPet.belongsTo(models.Pet, { foreignKey: 'petId' });
         BookingPet.belongsTo(models.Booking, { foreignKey: 'bookingId' });
+        BookingPet.hasMany(models.CheckInPet, { foreignKey: 'bookingPetId' });
     }
 
     return BookingPet;
