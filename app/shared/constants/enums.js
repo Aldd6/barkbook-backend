@@ -100,6 +100,12 @@ const CHECK_IN_STATUS = Object.freeze({
     CANCELADO: "CANCELADO"
 })
 
+const SERVICE_TYPE = Object.freeze({
+    ASEO: "ASEO",
+    RECREACION: "RECREACION",
+    ALIMENTACION: "ALIMENTACION"
+});
+
 module.exports = {
     TYPE_TRANSACTION,
     TYPE_TRANSACTION_ARRAY: Object.values(TYPE_TRANSACTION),
@@ -130,5 +136,7 @@ module.exports = {
     MOVEMENT_TYPE,
     MOVEMENT_TYPE_ARRAY: Object.values(MOVEMENT_TYPE),
     CHECK_IN_STATUS,
-    CHECK_IN_STATUS_ARRAY: Object.values(CHECK_IN_STATUS)
+    CHECK_IN_STATUS_ARRAY: Object.values(CHECK_IN_STATUS),
+    SERVICE_TYPE,
+    SERVICE_TYPE_ARRAY: Object.values(SERVICE_TYPE)
 }

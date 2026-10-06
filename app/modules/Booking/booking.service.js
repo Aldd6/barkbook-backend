@@ -16,6 +16,9 @@ const { getStripeClient } = require('../../shared/config/stripe.js');
 // disponibilidad. FINALIZADA y CANCELADA liberan el cupo.
 const ACTIVE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.CNFD, BOOKING_STATUS.ENES];
 const PENDING_GRACE_PERIOD_DAYS = 5;
+// PDCN: pago inicial de la reserva. ENES: saldo de cargos agregados durante la
+// estancia (ej. servicios), que debe quedar en 0 antes del check-out.
+const PAYABLE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.ENES];
 // Token de prueba publico de Stripe para un pago con tarjeta exitoso en modo
 // test. Ver DTOs/create-booking.js para el contexto de por que existe.
 const DEFAULT_TEST_PAYMENT_METHOD = 'pm_card_visa';
@@ -179,8 +182,8 @@ const confirmPayment = async (id, confirmBookingPaymentDTO) => {
     const updatedBooking = await sequelize.transaction(async (transaction) => {
         const booking = await Booking.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
         if(!booking) throw new ApiError(`La reserva con el ID ${id} no existe.`, "RESOURCE_NOT_FOUND");
-        if(booking.bookingStatus !== BOOKING_STATUS.PDCN) {
-            throw new ApiError(`Solo se puede confirmar el pago de una reserva en estado "${BOOKING_STATUS.PDCN}". Estado actual: "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
+        if(!PAYABLE_STATUSES.includes(booking.bookingStatus)) {
+            throw new ApiError(`Solo se puede confirmar el pago de una reserva en estado "${BOOKING_STATUS.PDCN}" o "${BOOKING_STATUS.ENES}". Estado actual: "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
         }
 
         const bills = await BookingBill.findAll({ where: { bookingId: id }, transaction });
@@ -203,7 +206,9 @@ const confirmPayment = async (id, confirmBookingPaymentDTO) => {
             description: description || `Pago confirmado por el personal del hotel (${methodPayment}) - Reserva #${id}.`
         }, { transaction });
 
-        await booking.update({ bookingStatus: BOOKING_STATUS.CNFD }, { transaction });
+        if(booking.bookingStatus === BOOKING_STATUS.PDCN) {
+            await booking.update({ bookingStatus: BOOKING_STATUS.CNFD }, { transaction });
+        }
         return booking;
     });
 

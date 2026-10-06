@@ -22,6 +22,8 @@ const toResponseDTO = (booking) => BookingResponseDTO.parse({
     bill: (booking.BookingBills || []).map(bb => BookingBillResponseDTO.parse({
         id: bb.id,
         bookingId: bb.bookingId,
+        serviceId: bb.serviceId,
+        quantity: bb.quantity,
         movementType: bb.movementType,
         amount: bb.amount,
         methodPayment: bb.methodPayment,

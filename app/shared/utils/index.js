@@ -60,6 +60,8 @@ dbConnection.BookingBill = require('../../modules/Booking/bookingBill.model.js')
 dbConnection.CheckIn = require('../../modules/CheckIn/checkIn.model.js')(sequelize, Sequelize);
 dbConnection.CheckInPet = require('../../modules/CheckIn/checkInPet.model.js')(sequelize, Sequelize);
 dbConnection.CheckOut = require('../../modules/CheckOut/CheckOut.model.js')(sequelize, Sequelize);
+dbConnection.Service = require('../../modules/Services/service.model.js')(sequelize, Sequelize);
+dbConnection.ServiceBranch = require('../../modules/Services/serviceBranch.model.js')(sequelize, Sequelize);
 
 //Ejecucion de asociaciones embebidas en los modelos
 Object.keys(dbConnection).forEach(model => {

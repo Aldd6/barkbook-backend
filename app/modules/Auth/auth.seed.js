@@ -15,6 +15,8 @@ const permissionCatalog = [
     // Configuracion de sedes y catalogo de habitaciones: solo Administrador.
     { permissionName: 'Crear sedes', permissionType: TYPE_TRANSACTION.WRITE },
     { permissionName: 'Crear tipos de habitacion', permissionType: TYPE_TRANSACTION.WRITE },
+    // Catalogo de servicios y su asignacion a sedes: solo Administrador.
+    { permissionName: 'Gestionar catalogo de servicios', permissionType: TYPE_TRANSACTION.WRITE },
     // Alta de habitaciones fisicas (RoomInventory) en una sede: Gerente.
     { permissionName: 'Crear habitaciones fisicas', permissionType: TYPE_TRANSACTION.WRITE },
     { permissionName: 'Ver reservas del dia', permissionType: TYPE_TRANSACTION.READ },
@@ -26,7 +28,7 @@ const permissionCatalog = [
     { permissionName: 'Consultar cuenta de reservacion', permissionType: TYPE_TRANSACTION.READ },
     { permissionName: 'Crear mascotas', permissionType: TYPE_TRANSACTION.WRITE },
     { permissionName: 'Crear reservaciones', permissionType: TYPE_TRANSACTION.WRITE },
-    // Cargar servicios a una reserva y ver reportes de estado: funcionalidad aun no implementada, se deja el permiso listo.
+    // Ver reportes de estado: funcionalidad aun no implementada, se deja el permiso listo.
     { permissionName: 'Cargar servicios a reservacion', permissionType: TYPE_TRANSACTION.WRITE },
     { permissionName: 'Ver reportes de estado de mascota', permissionType: TYPE_TRANSACTION.READ },
     // Subir reportes de estado, informes de servicios y aplicar medicacion: funcionalidad aun no implementada, se deja el permiso listo.
@@ -52,7 +54,8 @@ const rolePermissions = {
         'Hacer check-out de reservas',
         'Aplicar pagos cobrados en mostrador',
         'Gestionar contactos de emergencia',
-        'Consultar cuenta de reservacion'
+        'Consultar cuenta de reservacion',
+        'Cargar servicios a reservacion'
     ],
     'Cuidador': [
         'Subir reportes de estado de mascota',
