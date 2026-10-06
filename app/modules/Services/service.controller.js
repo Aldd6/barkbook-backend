@@ -121,7 +121,7 @@ const chargeToBooking = async (req, res, next) => {
     try {
         const { bookingId } = req.params;
         const requestDTO = ChargeServiceDTO.parse(req.body);
-        const { bill, balance } = await serviceService.chargeToBooking(bookingId, requestDTO, req.user);
+        const { bill, balance } = await serviceService.chargeToBooking(bookingId, requestDTO);
         return res.status(201).json({
             success: true,
             status: 201,

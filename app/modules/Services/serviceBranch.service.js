@@ -17,7 +17,7 @@ const create = async (createServiceBranchDTO) => {
     // la sede ya presto el servicio antes, se restaura en vez de crear otra fila.
     const existing = await ServiceBranch.findOne({ where: { branchId, serviceId }, paranoid: false });
     if(existing) {
-        if(!existing.deletedAt) throw new ApiError(`La sede con el ID ${branchId} ya presta el servicio con el ID ${serviceId}.`, "RESOURCE_CONFLICT");
+        if(!existing.isSoftDeleted()) throw new ApiError(`La sede con el ID ${branchId} ya presta el servicio con el ID ${serviceId}.`, "RESOURCE_CONFLICT");
         await existing.restore();
         return existing;
     }

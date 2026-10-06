@@ -3,14 +3,16 @@ const checkInController = require('./checkIn.controller.js');
 const verifyToken = require('../../shared/middlewares/auth.jwt.js');
 const authorize = require('../../shared/middlewares/authorize.js');
 const registerWorklog = require('../../shared/middlewares/worklog.register.js');
+const { PERMISSIONS } = require('../../shared/constants/enums.js');
+const { ensureCustomerOwnership, byBooking, byCheckIn } = require('../../shared/middlewares/ownership.js');
 
 const router = Router();
 const CHECK_IN_ENTITY_NAME = 'Check_In';
 
-router.post('/', verifyToken, authorize('Hacer check-in de reservas'), registerWorklog(CHECK_IN_ENTITY_NAME), checkInController.create);
-router.get('/', verifyToken, authorize('Ver reservas del dia'), registerWorklog(CHECK_IN_ENTITY_NAME), checkInController.getAll);
-router.get('/booking/:bookingId/available-rooms', verifyToken, authorize('Hacer check-in de reservas'), registerWorklog(CHECK_IN_ENTITY_NAME), checkInController.getAvailableRoomsForBooking);
-router.get('/booking/:bookingId', verifyToken, authorize('Consultar cuenta de reservacion'), registerWorklog(CHECK_IN_ENTITY_NAME), checkInController.getByBooking);
-router.get('/:id', verifyToken, authorize('Consultar cuenta de reservacion'), registerWorklog(CHECK_IN_ENTITY_NAME), checkInController.getById);
+router.post('/', verifyToken, authorize(PERMISSIONS.HACER_CHECK_IN), registerWorklog(CHECK_IN_ENTITY_NAME), checkInController.create);
+router.get('/', verifyToken, authorize(PERMISSIONS.VER_RESERVAS_DIA), registerWorklog(CHECK_IN_ENTITY_NAME), checkInController.getAll);
+router.get('/booking/:bookingId/available-rooms', verifyToken, authorize(PERMISSIONS.HACER_CHECK_IN), registerWorklog(CHECK_IN_ENTITY_NAME), ensureCustomerOwnership(byBooking(req => req.params.bookingId)), checkInController.getAvailableRoomsForBooking);
+router.get('/booking/:bookingId', verifyToken, authorize(PERMISSIONS.CONSULTAR_CUENTA_RESERVACION), registerWorklog(CHECK_IN_ENTITY_NAME), ensureCustomerOwnership(byBooking(req => req.params.bookingId)), checkInController.getByBooking);
+router.get('/:id', verifyToken, authorize(PERMISSIONS.CONSULTAR_CUENTA_RESERVACION), registerWorklog(CHECK_IN_ENTITY_NAME), ensureCustomerOwnership(byCheckIn(req => req.params.id)), checkInController.getById);
 
 module.exports = router;

@@ -3,10 +3,11 @@ const roleController = require('./role.controller.js');
 const verifyToken = require('../../shared/middlewares/auth.jwt.js');
 const authorize = require('../../shared/middlewares/authorize.js');
 const registerWorklog = require('../../shared/middlewares/worklog.register.js');
+const { PERMISSIONS } = require('../../shared/constants/enums.js');
 
 const router = Router();
 const ROLE_ENTITY_NAME = 'Role';
-const onlyAdmin = [verifyToken, authorize('Gestionar roles y permisos'), registerWorklog(ROLE_ENTITY_NAME)];
+const onlyAdmin = [verifyToken, authorize(PERMISSIONS.GESTIONAR_ROLES_PERMISOS), registerWorklog(ROLE_ENTITY_NAME)];
 
 router.post('/', onlyAdmin, roleController.create);
 router.get('/', onlyAdmin, roleController.getAll);

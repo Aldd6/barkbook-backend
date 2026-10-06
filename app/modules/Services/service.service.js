@@ -8,14 +8,10 @@ const CheckIn = dbConnection.CheckIn;
 const CheckInPet = dbConnection.CheckInPet;
 const RoomBranch = dbConnection.RoomBranch;
 const Pet = dbConnection.Pet;
-const Customer = dbConnection.Customer;
 const sequelize = dbConnection.sequelize;
 const Op = dbConnection.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, CHECK_IN_STATUS, MOVEMENT_TYPE } = require('../../shared/constants/enums.js');
-
-// Rol asignado por Auth.signup a los clientes finales.
-const CUSTOMER_ROLE_NAME = 'Cliente';
 
 const roundMoney =(value) => Math.round(value * 100) / 100;
 
@@ -27,7 +23,7 @@ const create = async (createServiceDTO) => {
     const { name } = createServiceDTO;
 
     const nameExists = await Service.findOne({ where: { name }, paranoid: false });
-    if(nameExists) throw new ApiError(`Ya existe un servicio con el nombre ${name}${nameExists.deletedAt ? ' (archivado, puede restaurarlo)' : ''}.`, "RESOURCE_CONFLICT");
+    if(nameExists) throw new ApiError(`Ya existe un servicio con el nombre ${name}${nameExists.isSoftDeleted() ? ' (archivado, puede restaurarlo)' : ''}.`, "RESOURCE_CONFLICT");
 
     const newService = await Service.create(createServiceDTO);
     return newService;
@@ -82,21 +78,14 @@ const getAll = async () => {
 
 // Carga un servicio del catalogo a la cuenta de una reserva EN ESTANCIA. El
 // cargo queda sin metodo de pago y se salda despues con confirm-payment antes
-// del check-out. Un Cliente solo puede cargar servicios a sus propias
-// reservas; el personal del hotel puede cargarlos a cualquiera.
-const chargeToBooking = async (bookingId, chargeServiceDTO, sessionUser) => {
+// del check-out. La pertenencia de la reserva al Cliente de la sesion la valida
+// el middleware ensureCustomerOwnership en la ruta.
+const chargeToBooking = async (bookingId, chargeServiceDTO) => {
     const { serviceId, petIds, description } = chargeServiceDTO;
 
     return await sequelize.transaction(async (transaction) => {
         const booking = await Booking.findByPk(bookingId, { transaction, lock: transaction.LOCK.UPDATE });
         if(!booking) throw new ApiError(`La reserva con el ID ${bookingId} no existe.`, "RESOURCE_NOT_FOUND");
-
-        if(sessionUser?.roleName === CUSTOMER_ROLE_NAME) {
-            const customer = await Customer.findOne({ where: { userId: sessionUser.id }, transaction });
-            if(!customer || booking.customerId !== customer.id) {
-                throw new ApiError(`La reserva #${bookingId} no pertenece al cliente de la sesion.`, "UNAUTHORIZED_ACCESS");
-            }
-        }
         if(booking.bookingStatus !== BOOKING_STATUS.ENES) {
             throw new ApiError(`Solo se pueden cargar servicios a una reserva en estado "${BOOKING_STATUS.ENES}". Estado actual: "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
         }
