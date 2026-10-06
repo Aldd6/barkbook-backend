@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 db.sequelize.authenticate()
     .then(() => {
         console.log('[DB] Conexion a la base de datos establecida correctamente.');
-        const forceSync = true;
+        const forceSync = false;
         db.sequelize.sync({force: forceSync}).then(async () => {
             console.log(`[DB] Sync con la base de datos: ${forceSync}`);
             // Genera los roles y permisos base que falten (sin deshacer cambios del administrador).
