@@ -13,9 +13,17 @@ const app = express();
 
 
 
+// Origenes permitidos del front end, separados por coma en CORS_ORIGIN
+// (ej. "http://localhost:5173,https://app.barkbook.com"). Por defecto, el
+// servidor de desarrollo de Vite.
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 // credentials:true es necesario porque el refresh token viaja en una cookie httpOnly
 app.use(cors({
-    origin: 'http://localhost:4200',
+    origin: allowedOrigins,
     credentials: true,
     optionsSuccessStatus: 200
 }));

@@ -12,7 +12,8 @@ const USER_ENTITY_NAME = 'User';
 router.post('/', verifyToken, authorize(PERMISSIONS.GESTIONAR_USUARIOS), registerWorklog(USER_ENTITY_NAME), userController.create);
 router.get('/', verifyToken, authorize(PERMISSIONS.GESTIONAR_USUARIOS), registerWorklog(USER_ENTITY_NAME), userController.getAllUsers);
 router.get('/:uid', verifyToken, registerWorklog(USER_ENTITY_NAME), ensureSelfUser(req => req.params.uid, PERMISSIONS.GESTIONAR_USUARIOS), userController.getUserByUid);
-router.put('/:uid', verifyToken, registerWorklog(USER_ENTITY_NAME), ensureSelfUser(req => req.params.uid, PERMISSIONS.GESTIONAR_USUARIOS), userController.update);
+// rolId y profileCompleted solo los cambia quien gestiona usuarios, aunque sea sobre su propia cuenta.
+router.put('/:uid', verifyToken, registerWorklog(USER_ENTITY_NAME), ensureSelfUser(req => req.params.uid, PERMISSIONS.GESTIONAR_USUARIOS), authorize.authorizeFields(['rolId', 'profileCompleted'], PERMISSIONS.GESTIONAR_USUARIOS), userController.update);
 router.delete('/:uid', verifyToken, registerWorklog(USER_ENTITY_NAME), ensureSelfUser(req => req.params.uid, PERMISSIONS.GESTIONAR_USUARIOS), userController.remove);
 
 module.exports = router;

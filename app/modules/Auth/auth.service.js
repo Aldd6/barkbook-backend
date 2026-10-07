@@ -3,6 +3,7 @@ const User = dbConfig.User;
 const Role = dbConfig.Role;
 const Customer = dbConfig.Customer;
 const Employee = dbConfig.Employee;
+const Permission = dbConfig.Permission;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Op = dbConfig.Sequelize.Op;
@@ -195,4 +196,18 @@ const signout = async (refreshToken) => {
     }
 }
 
-module.exports = { signup, signin, reissueTokens, refresh, signout };
+// Datos de la sesion actual: usuario, perfil (cliente o empleado) y los permisos
+// de su rol, para que el front end no dependa de ids que el token no trae.
+const me = async (userId) => {
+    const user = await User.findByPk(userId, {
+        include: [
+            { model: Customer, required: false },
+            { model: Employee, required: false },
+            { model: Role, include: [{ model: Permission, through: { attributes: [] }, required: false }] }
+        ]
+    });
+    if(!user) throw new ApiError('El usuario de la sesion ya no existe.', "UNAUTHENTICATED");
+    return user;
+}
+
+module.exports = { signup, signin, reissueTokens, refresh, signout, me };

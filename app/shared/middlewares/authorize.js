@@ -40,7 +40,25 @@ const authorize = (permissionName) => {
     };
 };
 
+// Exige el permiso solo si el body trae alguno de los campos indicados (ej. que
+// un usuario pueda editar su cuenta, pero no cambiarse el rol a si mismo).
+const authorizeFields = (fields, permissionName) => {
+    assertKnownPermission(permissionName);
+    return async (req, res, next) => {
+        try {
+            const sentFields = fields.filter(field => req.body?.[field] !== undefined);
+            if(sentFields.length === 0) return next();
+            if(!req.user) return next(new ApiError('Acceso denegado. Token de sesion no proporcionado.', "UNAUTHENTICATED"));
+            await assertPermission(req.user, permissionName);
+            next();
+        } catch(err) {
+            next(err);
+        }
+    };
+};
+
 authorize.assertPermission = assertPermission;
 authorize.assertKnownPermission = assertKnownPermission;
+authorize.authorizeFields = authorizeFields;
 
 module.exports = authorize;
