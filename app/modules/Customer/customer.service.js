@@ -4,6 +4,9 @@ const User = dbConnection.User;
 const City = dbConnection.City;
 const sequelize = dbConnection.sequelize;
 const { ApiError } = require('../../shared/utils/errors.js');
+const { replaceRecordFile, removeRecordFile } = require('../../shared/config/s3.js');
+
+const PROFILE_PICTURE_FOLDER = 'customers/profile-pictures';
 
 // Al crear el perfil de Customer se completa el perfil del usuario: a
 // diferencia de Employee (donde un admin asigna el usuario despues), aqui
@@ -11,7 +14,7 @@ const { ApiError } = require('../../shared/utils/errors.js');
 // ese create es lo que marca profileCompleted = true (habilitando, a futuro
 // cuando exista auth, el acceso normal en el siguiente login).
 const create = async (createCustomerDTO) => {
-    const { userId, cityId, name, lastname, dpiNumber, nitOrCf, nitNumber, addressLineOne, addressLineTwo, phoneNumber, profilePicture, termsAcceptance } = createCustomerDTO;
+    const { userId, cityId, name, lastname, dpiNumber, nitOrCf, nitNumber, addressLineOne, addressLineTwo, phoneNumber, termsAcceptance } = createCustomerDTO;
 
     const user = await User.findByPk(userId);
     if(!user) throw new ApiError(`El usuario con el ID ${userId} no existe.`, "RESOURCE_NOT_FOUND");
@@ -40,7 +43,6 @@ const create = async (createCustomerDTO) => {
             addressLineOne,
             addressLineTwo,
             phoneNumber,
-            profilePicture,
             termsAcceptance
         }, { transaction });
 
@@ -108,4 +110,14 @@ const getAll = async () => {
     return customers;
 }
 
-module.exports = { create, update, remove, restore, getById, getAll };
+const updateProfilePicture = async (id, file) => {
+    const customer = await getById(id);
+    return replaceRecordFile(customer, 'profilePicture', PROFILE_PICTURE_FOLDER, file);
+}
+
+const removeProfilePicture = async (id) => {
+    const customer = await getById(id);
+    return removeRecordFile(customer, 'profilePicture');
+}
+
+module.exports = { create, update, remove, restore, getById, getAll, updateProfilePicture, removeProfilePicture };

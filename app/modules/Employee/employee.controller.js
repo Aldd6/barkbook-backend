@@ -3,8 +3,9 @@ const CreateEmployeeDTO = require('./DTOs/create-employee.js');
 const UpdateEmployeeDTO = require('./DTOs/update-employee.js');
 const AssignEmployeeUserDTO = require('./DTOs/assign-employee-user.js');
 const EmployeeResponseDTO = require('./DTOs/employee-response.js');
+const { getFileUrl } = require('../../shared/config/s3.js');
 
-const toResponseDTO = (employee) => EmployeeResponseDTO.parse({
+const toResponseDTO = async (employee) => EmployeeResponseDTO.parse({
     id: employee.id,
     userId: employee.userId,
     branchId: employee.branchId,
@@ -15,7 +16,7 @@ const toResponseDTO = (employee) => EmployeeResponseDTO.parse({
     addressLineOne: employee.addressLineOne,
     addressLineTwo: employee.addressLineTwo,
     phoneNumber: employee.phoneNumber,
-    profilePicture: employee.profilePicture
+    profilePicture: await getFileUrl(employee.profilePicture)
 });
 
 const create = async (req, res, next) => {
@@ -26,7 +27,7 @@ const create = async (req, res, next) => {
             success: true,
             status: 201,
             message: "Empleado creado exitosamente.",
-            employee: toResponseDTO(newEmployee)
+            employee: await toResponseDTO(newEmployee)
         });
     } catch(error) {
         next(error);
@@ -42,7 +43,7 @@ const update = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Empleado actualizado exitosamente.",
-            employee: toResponseDTO(updatedEmployee)
+            employee: await toResponseDTO(updatedEmployee)
         });
     } catch(error) {
         next(error);
@@ -57,7 +58,7 @@ const remove = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Empleado eliminado exitosamente.",
-            employee: toResponseDTO(removedEmployee)
+            employee: await toResponseDTO(removedEmployee)
         });
     } catch(error) {
         next(error);
@@ -72,7 +73,7 @@ const restore = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Empleado restaurado exitosamente.",
-            employee: toResponseDTO(restoredEmployee)
+            employee: await toResponseDTO(restoredEmployee)
         });
     } catch(error) {
         next(error);
@@ -87,7 +88,7 @@ const getById = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Empleado encontrado exitosamente.",
-            employee: toResponseDTO(employee)
+            employee: await toResponseDTO(employee)
         });
     } catch(error) {
         next(error);
@@ -101,7 +102,7 @@ const getAll = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Empleados obtenidos exitosamente.",
-            employees: employees.map(toResponseDTO)
+            employees: await Promise.all(employees.map(toResponseDTO))
         });
     } catch(error) {
         next(error);
@@ -117,11 +118,41 @@ const assignUser = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Usuario asignado al empleado exitosamente.",
-            employee: toResponseDTO(employee)
+            employee: await toResponseDTO(employee)
         });
     } catch(error) {
         next(error);
     }
 };
 
-module.exports = { create, update, remove, restore, getById, getAll, assignUser };
+const updateProfilePicture = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await employeeService.updateProfilePicture(id, req.file);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Foto de perfil del empleado actualizada exitosamente.",
+            employee: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+const removeProfilePicture = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await employeeService.removeProfilePicture(id);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Foto de perfil del empleado eliminada exitosamente.",
+            employee: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+module.exports = { create, update, remove, restore, getById, getAll, assignUser, updateProfilePicture, removeProfilePicture };

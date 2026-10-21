@@ -4,6 +4,13 @@ const ConfirmBookingPaymentDTO = require('./DTOs/confirm-booking-payment.js');
 const BookingResponseDTO = require('./DTOs/booking-response.js');
 const BookingPetResponseDTO = require('./DTOs/booking-pet-response.js');
 const BookingBillResponseDTO = require('./DTOs/booking-bill-response.js');
+const { MOVEMENT_TYPE } = require('../../shared/constants/enums.js');
+
+const sumByMovement = (bills, movementType) => bills
+    .filter(bill => bill.movementType === movementType)
+    .reduce((sum, bill) => sum + parseFloat(bill.amount), 0);
+
+const balanceOf = (bills) => Math.round((sumByMovement(bills, MOVEMENT_TYPE.CARGO) - sumByMovement(bills, MOVEMENT_TYPE.ABONO)) * 100) / 100;
 
 const toResponseDTO = (booking) => BookingResponseDTO.parse({
     id: booking.id,
@@ -29,7 +36,8 @@ const toResponseDTO = (booking) => BookingResponseDTO.parse({
         methodPayment: bb.methodPayment,
         reference: bb.reference,
         description: bb.description
-    }))
+    })),
+    balance: balanceOf(booking.BookingBills || [])
 });
 
 const create = async (req, res, next) => {

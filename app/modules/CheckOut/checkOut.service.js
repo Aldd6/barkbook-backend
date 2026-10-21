@@ -19,7 +19,7 @@ const withDetails = (checkOut) => CheckOut.findByPk(checkOut.id, {
 });
 
 const create = async (createCheckOutDTO, userId) => {
-    const { checkInId, observations } = createCheckOutDTO;
+    const { checkInId, observations, payment } = createCheckOutDTO;
 
     const newCheckOut = await sequelize.transaction(async (transaction) => {
         const checkIn = await CheckIn.findByPk(checkInId, { transaction, lock: transaction.LOCK.UPDATE });
@@ -41,7 +41,17 @@ const create = async (createCheckOutDTO, userId) => {
         const bills = await BookingBill.findAll({ where: { bookingId: booking.id }, transaction });
         const remaining = roundMoney(sumByMovement(bills, MOVEMENT_TYPE.CARGO) - sumByMovement(bills, MOVEMENT_TYPE.ABONO));
         if(remaining > 0) {
-            throw new ApiError(`La reserva #${booking.id} tiene un saldo pendiente de Q${remaining.toFixed(2)}. Debe saldarse antes de realizar el check-out.`, "RESOURCE_CONFLICT");
+            if(!payment) {
+                throw new ApiError(`La reserva #${booking.id} tiene un saldo pendiente de Q${remaining.toFixed(2)}. Debe saldarse antes de realizar el check-out (envie payment para cobrarlo en este paso).`, "RESOURCE_CONFLICT");
+            }
+            await BookingBill.create({
+                bookingId: booking.id,
+                movementType: MOVEMENT_TYPE.ABONO,
+                amount: remaining,
+                methodPayment: payment.methodPayment,
+                reference: payment.reference ?? null,
+                description: payment.description || `Pago del saldo pendiente en el check-out (${payment.methodPayment}) - Reserva #${booking.id}.`
+            }, { transaction });
         }
 
         const room = await RoomInventory.findByPk(checkIn.roomInventoryId, { transaction, lock: transaction.LOCK.UPDATE });

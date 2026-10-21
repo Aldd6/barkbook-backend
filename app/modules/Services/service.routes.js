@@ -10,6 +10,7 @@ const router = Router();
 const SERVICE_ENTITY_NAME = 'Service';
 
 router.post('/', verifyToken, authorize(PERMISSIONS.GESTIONAR_CATALOGO_SERVICIOS), registerWorklog(SERVICE_ENTITY_NAME), serviceController.create);
+router.get('/booking/:bookingId', verifyToken, authorize(PERMISSIONS.CARGAR_SERVICIOS_RESERVACION), registerWorklog(SERVICE_ENTITY_NAME), ensureCustomerOwnership(byBooking(req => req.params.bookingId)), serviceController.getAvailableForBooking);
 router.post('/booking/:bookingId/charge', verifyToken, authorize(PERMISSIONS.CARGAR_SERVICIOS_RESERVACION), registerWorklog(SERVICE_ENTITY_NAME), ensureCustomerOwnership(byBooking(req => req.params.bookingId)), serviceController.chargeToBooking);
 router.get('/', verifyToken, registerWorklog(SERVICE_ENTITY_NAME), serviceController.getAll);
 router.get('/:id', verifyToken, registerWorklog(SERVICE_ENTITY_NAME), serviceController.getById);

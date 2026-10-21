@@ -3,6 +3,7 @@ const customerController = require('./customer.controller.js');
 const verifyToken = require('../../shared/middlewares/auth.jwt.js');
 const registerWorklog = require('../../shared/middlewares/worklog.register.js')
 const { ensureCustomerOwnership, denyCustomers, byCustomer } = require('../../shared/middlewares/ownership.js');
+const { uploadImage } = require('../../shared/middlewares/upload.file.js');
 
 const router = Router();
 const CUSTOMER_ENTITY_NAME = 'Customer'
@@ -13,5 +14,9 @@ router.get('/:id', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCus
 router.put('/:id', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), customerController.update);
 router.delete('/:id', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), customerController.remove);
 router.patch('/:id/restore', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), customerController.restore);
+
+// multipart/form-data con el archivo en el campo "file"
+router.put('/:id/profile-picture', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), uploadImage, customerController.updateProfilePicture);
+router.delete('/:id/profile-picture', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), customerController.removeProfilePicture);
 
 module.exports = router;

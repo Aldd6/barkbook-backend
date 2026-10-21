@@ -2,6 +2,10 @@ const dbConnection = require('../../shared/utils/index.js');
 const Pet = dbConnection.Pet;
 const Customer = dbConnection.Customer;
 const { ApiError } = require('../../shared/utils/errors.js');
+const { replaceRecordFile, removeRecordFile } = require('../../shared/config/s3.js');
+
+const PROFILE_PICTURE_FOLDER = 'pets/profile-pictures';
+const VACCINATION_CARD_FOLDER = 'pets/vaccination-cards';
 
 const create = async (createPetDTO) => {
     const { customerId } = createPetDTO;
@@ -57,4 +61,24 @@ const getAllByCustomer = async (customerId) => {
     return pets;
 }
 
-module.exports = { create, update, remove, restore, getById, getAll, getAllByCustomer };
+const updateProfilePicture = async (id, file) => {
+    const pet = await getById(id);
+    return replaceRecordFile(pet, 'profilePicture', PROFILE_PICTURE_FOLDER, file);
+}
+
+const removeProfilePicture = async (id) => {
+    const pet = await getById(id);
+    return removeRecordFile(pet, 'profilePicture');
+}
+
+const updateVaccinationCard = async (id, file) => {
+    const pet = await getById(id);
+    return replaceRecordFile(pet, 'vaccinationCard', VACCINATION_CARD_FOLDER, file);
+}
+
+const removeVaccinationCard = async (id) => {
+    const pet = await getById(id);
+    return removeRecordFile(pet, 'vaccinationCard');
+}
+
+module.exports = { create, update, remove, restore, getById, getAll, getAllByCustomer, updateProfilePicture, removeProfilePicture, updateVaccinationCard, removeVaccinationCard };

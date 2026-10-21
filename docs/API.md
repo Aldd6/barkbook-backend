@@ -137,7 +137,7 @@ puede tener la lista completa y además pasa cualquier chequeo).
 |---|---|
 | **Administrador** | Todos (además el back end lo deja pasar cualquier chequeo) |
 | **Gerente** | Ver reservas del dia · Gestionar habitaciones fisicas · Actualizar estado de habitaciones |
-| **Recepcionista** | Ver reservas del dia · Hacer check-in · Hacer check-out · Aplicar pagos cobrados en mostrador · Gestionar contactos de emergencia · Consultar cuenta de reservacion · Cargar servicios a reservacion · Actualizar estado de habitaciones |
+| **Recepcionista** | Ver reservas del dia · Hacer check-in · Hacer check-out · Aplicar pagos cobrados en mostrador · Gestionar contactos de emergencia · Consultar cuenta de reservacion · Actualizar estado de habitaciones |
 | **Cuidador** | Subir reportes de estado de mascota · Subir informes de servicios completados · Aplicar medicacion requerida a mascotas *(funcionalidad aún no implementada)* |
 | **Operador** | Subir informes de limpieza de habitaculos · Aplicar alimentacion a mascotas *(no implementadas)* · Actualizar estado de habitaciones |
 | **Cliente** | Gestionar contactos de emergencia · Consultar cuenta de reservacion · Gestionar mascotas · Gestionar reservaciones · Cargar servicios a reservacion · Ver reportes de estado de mascota |
@@ -188,7 +188,7 @@ Todos los `DELETE` son borrado lógico (archivado) y tienen su `PATCH /:id/resto
 | PUT | `/users/:uid` | propio usuario o P: Gestionar usuarios | `{ rolId?, username?, email?, password?, profileCompleted? }` | `user` |
 | DELETE | `/users/:uid` | propio usuario o P: Gestionar usuarios | | `user` |
 
-`user`: `{ uid (uuid), rolId, username, email, profileCompleted }`.
+`user`: `{ id, uid (uuid), rolId, username, email, profileCompleted }`. `id` es el que pide `PATCH /employees/:id/assign-user`.
 `rolId` y `profileCompleted` solo pueden enviarse en el `PUT` con el permiso
 "Gestionar usuarios" (incluso sobre la propia cuenta); sin él, 403.
 Para crear personal: crear el usuario con `POST /users` y vincularlo al
@@ -216,8 +216,9 @@ Nota: archivar un rol no borra sus permisos; al restaurarlo los recupera.
 | GET | `/customers` | staff | `customers` |
 | GET / PUT / DELETE | `/customers/:id` | propio | `customer` |
 | PATCH | `/customers/:id/restore` | propio | `customer` |
+| PUT / DELETE | `/customers/:id/profile-picture` | propio | `customer` |
 
-Body de alta: `{ cityId, name, lastname, dpiNumber (13 dígitos), nitOrCf (true = factura con NIT), nitNumber? (obligatorio si nitOrCf), addressLineOne, addressLineTwo?, phoneNumber (+502XXXXXXXX), profilePicture?, termsAcceptance (debe ser true) }`.
+Body de alta: `{ cityId, name, lastname, dpiNumber (13 dígitos), nitOrCf (true = factura con NIT), nitNumber? (obligatorio si nitOrCf), addressLineOne, addressLineTwo?, phoneNumber (+502XXXXXXXX), termsAcceptance (debe ser true) }`. La foto se sube aparte (ver [Archivos](#archivos-fotos-y-documentos)).
 Update: los mismos campos opcionales salvo `dpiNumber` y `termsAcceptance`.
 
 ### Contactos de emergencia
@@ -239,8 +240,10 @@ Body: `{ customerId, name, lastname, kinship (KINSHIP), phoneNumber }` (`custome
 | GET | `/pets/customer/:customerId` | propio | `pets` |
 | GET | `/pets/:id` | propio | `pet` |
 | PUT / DELETE / restore | `/pets/:id` | P: Gestionar mascotas · propio | `pet` |
+| PUT / DELETE | `/pets/:id/profile-picture` | P: Gestionar mascotas · propio | `pet` |
+| PUT / DELETE | `/pets/:id/vaccination-card` | P: Gestionar mascotas · propio | `pet` |
 
-Body: `{ customerId, name, species (PET_SPECIES), sex (SEX), birthday (YYYY-MM-DD, no futura), size (PET_SIZE), actualWeight, unitOfMeasureWeight (UNIT_MEASURE_WEIGHT_PET), sociabilityLevel (0–5), isNeutered, vaccinationCard?, profilePicture? }`.
+Body: `{ customerId, name, species (PET_SPECIES), sex (SEX), birthday (YYYY-MM-DD, no futura), size (PET_SIZE), actualWeight, unitOfMeasureWeight (UNIT_MEASURE_WEIGHT_PET), sociabilityLevel (0–5), isNeutered }`. Foto y carné de vacunación se suben aparte (ver [Archivos](#archivos-fotos-y-documentos)).
 
 #### Expediente de la mascota
 Mismo patrón para los tres recursos:
@@ -270,14 +273,19 @@ Mismo patrón para los tres recursos:
 | GET | `/room-branches`, `/room-branches/:id`, `/room-branches/branch/:branchId` | token | `roomBranches` / `roomBranch` |
 | POST / PUT / DELETE / restore | `/room-branches[/:id]` | P: Gestionar habitaciones por sede | `roomBranch` |
 | GET | `/room-inventory`, `/room-inventory/:id`, `/room-inventory/room-branch/:roomBranchId` | token | `roomInventory` |
+| GET | `/room-inventory/archived[?roomBranchId=]` | P: Gestionar habitaciones fisicas | `roomInventory` (solo archivadas) |
 | POST | `/room-inventory/generate` | P: Gestionar habitaciones fisicas | `roomInventory` |
 | PUT | `/room-inventory/:id` | P: Actualizar estado de habitaciones | `roomInventory` |
 | DELETE / restore | `/room-inventory/:id` | P: Gestionar habitaciones fisicas | `roomInventory` |
 
 - **Sede**: `{ cityId, branchName, addressLineOne, addressLineTwo? }`.
 - **Tipo de habitación**: `{ name, prefix (2–10, se guarda en mayúsculas, no editable), speciesType, isCage, lengthDimension, widthDimensions, heightDimensions, description?, hasAC, isSoundproofed, hasCCTV, hasOrthopedicBed, hasPrivateYard, hasSharedYard, hasToys, maximumNumberOfGuests, nightlyRate }`.
-- **Habitaciones por sede** (`RoomBranch`): qué tipo ofrece una sede y cuántas unidades: `{ branchId, roomTypeId, maximumQuantity }`. Es lo que se reserva (`branchRoomId`).
-- **Habitación física** (`RoomInventory`): `{ id, roomBranchId, roomNumber (prefijo + número, ej. STD001), status (ROOM_STATUS), active }`. Se generan en lote: `{ branchId, roomTypeId, quantity (1–500) }`. Update: `{ status?, active? }`.
+- **Habitaciones por sede** (`RoomBranch`): qué tipo ofrece una sede y cuántas unidades: `{ branchId, roomTypeId, maximumQuantity }`. Es lo que se reserva (`branchRoomId`). Si la sede ya tuvo ese tipo y la configuración está archivada, el `POST` la restaura con el nuevo `maximumQuantity` (200 en vez de 201); 409 si el cupo es menor que sus habitaciones vigentes.
+- **Habitación física** (`RoomInventory`): `{ id, roomBranchId, roomNumber (prefijo + número, ej. STD001), status (ROOM_STATUS), active, archivedAt }`. `archivedAt` es `null` si está vigente y la fecha de archivado si no. Se generan en lote: `{ branchId, roomTypeId, quantity (1–500) }`. Update: `{ status?, active? }`.
+  - **Cupo**: `maximumQuantity` cuenta solo las habitaciones no archivadas. Las archivadas no ocupan espacio.
+  - **Numeración**: el consecutivo parte del número más alto ya usado en esa `RoomBranch`, incluidas las archivadas, así que nunca se reutiliza un número. El relleno de ceros sale de los dígitos de `maximumQuantity`. Si el consecutivo lo excede, el número lleva más dígitos (máximo 9 → `STD10`).
+  - **Archivadas**: `GET /room-inventory/archived` las lista ordenadas de la más reciente a la más antigua. `roomBranchId` es opcional, filtra por configuración y responde 404 si no existe. `GET /room-inventory` y `/room-branch/:roomBranchId` no las incluyen.
+  - **Restaurar**: 409 `RESOURCE_CONFLICT` si la configuración ya tiene `maximumQuantity` habitaciones no archivadas. Restaurar una habitación que no está archivada no hace nada y la devuelve tal cual.
 
 ### Servicios
 | Método | Ruta | Acceso | Clave |
@@ -287,11 +295,22 @@ Mismo patrón para los tres recursos:
 | GET | `/service-branches`, `/service-branches/:id` | token | `serviceBranches` / `serviceBranch` |
 | GET | `/service-branches/branch/:branchId` | token | `serviceBranches` (incluye `service` completo) |
 | POST / DELETE / restore | `/service-branches[/:id]` | P: Gestionar catalogo de servicios | `serviceBranch` |
-| POST | `/services/booking/:bookingId/charge` | P: Cargar servicios a reservacion · propio | `bill`, `balance` |
+| GET | `/services/booking/:bookingId` | P: Cargar servicios a reservacion · propio | `services` (solo los de la sede de la reserva) |
+| POST | `/services/booking/:bookingId/charge` | P: Cargar servicios a reservacion · propio | `bill`, `payment`, `balance` |
 
 - **Servicio**: `{ name, description?, serviceType (SERVICE_TYPE), speciesType? (null = cualquier especie), isMultiGuest, rate }`.
 - **Asignar a sede**: `{ branchId, serviceId }`. Reasignar uno retirado lo restaura.
-- **Cargar a reserva**: `{ serviceId, petIds?, description? }`. Solo reservas `EN ESTANCIA`; el servicio debe prestarse en la sede de la reserva; las mascotas deben estar admitidas en el check-in. Monto = `rate × (isMultiGuest ? 1 : nº mascotas)`; sin `petIds` se cobra a todas las admitidas. Respuesta: el cargo creado y `balance` (saldo pendiente).
+#### Cargar servicios durante la estancia (lo hace el Cliente)
+El **Cliente** agrega los servicios que quiera a su reserva `EN ESTANCIA`. El Recepcionista no carga servicios: solo revisa la cuenta y cobra el saldo.
+
+1. **Catálogo**: `GET /services/booking/:bookingId` devuelve solo los servicios que se prestan en la **sede de la reserva** y que aplican a la especie de su tipo de habitación (`speciesType` igual o `null`). Usar esta ruta, no `/services`.
+2. **Cargar**: `POST /services/booking/:bookingId/charge` con
+   `{ serviceId, paymentMethod, petIds?, stripePaymentMethodId?, description? }`.
+   - `paymentMethod` (SERVICE_PAYMENT_OPTION):
+     - `TARJETA CREDITO/DEBITO`: se cobra al momento con Stripe. Se registran un `CARGO` y un `ABONO` (`payment`, con el PaymentIntent en `reference`), así que no genera saldo. En modo test, si no se envía `stripePaymentMethodId` se usa `pm_card_visa`. Si Stripe rechaza el cobro: 402 `PAYMENT_FAILED`.
+     - `CARGO A CUENTA`: se registra solo el `CARGO` (`methodPayment: null`) y `payment` es `null`. Sube el saldo, que el Recepcionista cobra en mostrador.
+   - Reglas: solo reservas `EN ESTANCIA`; el servicio debe prestarse en la sede de la reserva; las mascotas deben estar admitidas en el check-in. Monto = `rate × (isMultiGuest ? 1 : nº mascotas)`; sin `petIds` se cobra a todas las admitidas.
+   - Respuesta: `bill` (el cargo), `payment` (el abono con tarjeta o `null`) y `balance` (saldo pendiente de la reserva).
 
 ### Reservas
 | Método | Ruta | Acceso | Clave |
@@ -321,8 +340,8 @@ Alta: `{ branchRoomId, customerId, checkInDate, checkOutDate (YYYY-MM-DD, salida
              "reference": null, "description": "Cargo por reserva #1 ..." }]
 }
 ```
-**Saldo pendiente** = suma de `CARGO` − suma de `ABONO`. Un `CARGO` puede tener
-`methodPayment: null` (servicios consumidos durante la estancia).
+Toda respuesta de reserva incluye `balance`: el **saldo pendiente**, igual a la suma de `CARGO` − la suma de `ABONO`. Un `CARGO` con
+`methodPayment: null` es un servicio cargado a la cuenta que todavía no se ha cobrado.
 
 `confirm-payment`: `{ methodPayment (cualquiera menos TARJETA), reference?, description? }`.
 Registra un `ABONO` por el saldo pendiente. Funciona en `PENDIENTE DE CONFIRMAR`
@@ -352,8 +371,14 @@ Body: `{ bookingId, pets: [{ bookingPetId, admitted, nonadmissionReason? (obliga
 | GET | `/check-outs/check-in/:checkInId` | P: Consultar cuenta de reservacion · propio | `checkOut` |
 | GET | `/check-outs/:id` | P: Consultar cuenta de reservacion · propio | `checkOut` |
 
-Body: `{ checkInId, observations? }`. Requiere reserva `EN ESTANCIA` y saldo 0.
+Body: `{ checkInId, observations?, payment?: { methodPayment, reference?, description? } }`. Requiere reserva `EN ESTANCIA`.
+- Si `balance` es 0, el check-out procede sin pago.
+- Si hay saldo (servicios cargados a la cuenta), el Recepcionista lo cobra en el mismo paso enviando `payment`. `methodPayment` acepta cualquier método excepto `TARJETA CREDITO/DEBITO`. Se registra un `ABONO` por todo el saldo, en la misma transacción. Enviar `payment` requiere además el permiso "Aplicar pagos cobrados en mostrador".
+- Si hay saldo y no se envía `payment`: 409 con el monto pendiente. Alternativa: saldar antes con `PATCH /bookings/:id/confirm-payment`.
+
 Resultado: reserva `FINALIZADA`, habitación `LIMPIEZA Y DESINFECCION`.
+
+Flujo sugerido para la pantalla de check-out: `GET /bookings/:id` → mostrar `bill` y `balance` → si `balance > 0`, pedir el método de pago → `POST /check-outs` con `payment`.
 
 ### Empleados
 | Método | Ruta | Acceso | Clave |
@@ -363,8 +388,29 @@ Resultado: reserva `FINALIZADA`, habitación `LIMPIEZA Y DESINFECCION`.
 | GET | `/employees/:id` | propio perfil o P: Gestionar empleados | `employee` |
 | PUT / DELETE / restore | `/employees/:id` | P: Gestionar empleados | `employee` |
 | PATCH | `/employees/:id/assign-user` | P: Gestionar empleados | `employee` |
+| PUT / DELETE | `/employees/:id/profile-picture` | P: Gestionar empleados | `employee` |
 
-Body: `{ branchId, cityId, name, lastname, dpiNumber, addressLineOne, addressLineTwo?, phoneNumber, profilePicture? }`. `assign-user`: `{ userId }`.
+Body: `{ branchId, cityId, name, lastname, dpiNumber, addressLineOne, addressLineTwo?, phoneNumber }`. `assign-user`: `{ userId }`.
+
+### Archivos (fotos y documentos)
+Se guardan en un bucket S3 privado. Los endpoints `PUT .../profile-picture` y `PUT .../vaccination-card` reciben
+`multipart/form-data` con **un solo archivo en el campo `file`** (máx. 5 MB); `DELETE` sobre la misma ruta lo quita.
+Subir un archivo reemplaza al anterior.
+
+| Campo | Formatos |
+|---|---|
+| `profilePicture` (cliente, empleado, mascota) | jpeg, png, webp |
+| `vaccinationCard` (mascota) | jpeg, png, webp, pdf |
+
+El tipo se valida por el contenido real del archivo, no por la extensión. En todas las respuestas (incluido
+`GET /auth/me`) `profilePicture` y `vaccinationCard` vienen como **URL firmada que expira en 1 hora** (o `null`):
+úsala directo en `<img src>` y vuelve a pedir el recurso si expira; no la guardes.
+
+```js
+const fd = new FormData();
+fd.append('file', input.files[0]);
+await api.put(`/pets/${id}/profile-picture`, fd); // sin fijar Content-Type a mano
+```
 
 ---
 
@@ -375,9 +421,10 @@ POST /bookings ──► PENDIENTE DE CONFIRMAR ──(PATCH confirm-payment)─
       │ (tarjeta)                    └─(5 días sin pago)──► CANCELADA
       └──────────────────────────────────────────────────► CONFIRMADA
 CONFIRMADA ──(POST /check-ins)──► EN ESTANCIA  (habitación OCUPADA)
-EN ESTANCIA ──(POST /services/booking/:id/charge)──► saldo > 0
-            ──(PATCH confirm-payment)──► saldo 0
-            ──(POST /check-outs)──► FINALIZADA (habitación LIMPIEZA Y DESINFECCION)
+EN ESTANCIA ──(Cliente: POST /services/booking/:id/charge)
+                 ├─ TARJETA ────────► pagado con Stripe, el saldo no cambia
+                 └─ CARGO A CUENTA ─► saldo > 0
+            ──(Recepcionista: POST /check-outs { payment } si hay saldo)──► FINALIZADA (habitación LIMPIEZA Y DESINFECCION)
 Habitación: LIMPIEZA ──(PUT /room-inventory/:id { status: "DISPONIBLE" })──► DISPONIBLE
 ```
 
@@ -398,6 +445,7 @@ Habitación: LIMPIEZA ──(PUT /room-inventory/:id { status: "DISPONIBLE" })�
 | ROOM_STATUS | `DISPONIBLE`, `OCUPADA`, `MANTENIMIENTO/REPARACION`, `LIMPIEZA Y DESINFECCION`, `INACTIVA` |
 | BOOKING_STATUS | `RESERVA CONFIRMADA`, `RESERVA PENDIENTE DE CONFIRMAR`, `EN ESTANCIA`, `FINALIZADA`, `CANCELADA` |
 | PAYMENT_METHOD | `TARJETA CREDITO/DEBITO`, `POS`, `EFECTIVO`, `TRANSFERENCIA` |
+| SERVICE_PAYMENT_OPTION (cargo de servicios) | `TARJETA CREDITO/DEBITO`, `CARGO A CUENTA` |
 | MOVEMENT_TYPE | `CARGO`, `ABONO`, `REEMBOLSO` |
 | CHECK_IN_STATUS | `COMPLETADO`, `CANCELADO` |
 | SERVICE_TYPE | `ASEO`, `RECREACION`, `ALIMENTACION` |
@@ -413,8 +461,8 @@ NIT `^[0-9]{1,10}-?[0-9Kk]$`; montos en quetzales (GTQ) como número.
 1. **Cookie `sameSite: 'strict'`**: funciona en desarrollo (`localhost:5173` →
    `localhost:3000` es el mismo sitio). Si en producción front y API quedan en
    dominios distintos, habrá que ajustarla o servir ambos bajo el mismo dominio.
-2. **Imágenes** (`profilePicture`, `vaccinationCard`) son solo referencias de
-   texto (máx. 500); no existe endpoint de subida de archivos.
+2. **Archivos huérfanos en S3**: el usuario IAM de prueba no tiene `s3:DeleteObject`, así
+   que al reemplazar o quitar una foto el archivo viejo se queda en el bucket (la API no falla).
 3. **Reportes, informes, medicación y alimentación** tienen permisos creados
    pero no tienen endpoints todavía.
 4. **Recepcionista no tiene "Gestionar reservaciones" ni "Gestionar

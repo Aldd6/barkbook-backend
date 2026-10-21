@@ -21,13 +21,7 @@ const UpdatePetDTO = z.object({
         .min(0, { message: "El nivel de sociabilidad minimo es 0." })
         .max(5, { message: "El nivel de sociabilidad maximo es 5." })
         .optional(),
-    isNeutered: z.boolean().optional(),
-    vaccinationCard: z.string().trim()
-        .max(500, { message: "La referencia de la imagen no puede exceder los 500 caracteres." })
-        .optional(),
-    profilePicture: z.string().trim()
-        .max(500, { message: "La referencia de la imagen no puede exceder los 500 caracteres." })
-        .optional()
+    isNeutered: z.boolean().optional()
 });
 
 module.exports = UpdatePetDTO;

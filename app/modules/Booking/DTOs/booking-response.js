@@ -13,7 +13,9 @@ const BookingResponseDTO = z.object({
     nightlyRate: z.coerce.number(),
     cancellationReason: z.string().nullable().optional(),
     pets: z.array(BookingPetResponseDTO).optional(),
-    bill: z.array(BookingBillResponseDTO).optional()
+    bill: z.array(BookingBillResponseDTO).optional(),
+    // Saldo pendiente: suma de CARGO - suma de ABONO.
+    balance: z.number().optional()
 });
 
 module.exports = BookingResponseDTO;

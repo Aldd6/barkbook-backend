@@ -10,6 +10,8 @@ const ROOM_INVENTORY_ENTITY_NAME = 'Room_Inventory';
 
 router.post('/generate', verifyToken, authorize(PERMISSIONS.GESTIONAR_HABITACIONES_FISICAS), registerWorklog(ROOM_INVENTORY_ENTITY_NAME), roomInventoryController.generateBulk);
 router.get('/', verifyToken, registerWorklog(ROOM_INVENTORY_ENTITY_NAME), roomInventoryController.getAll);
+// Debe ir antes de '/:id' para que 'archived' no se tome como id
+router.get('/archived', verifyToken, authorize(PERMISSIONS.GESTIONAR_HABITACIONES_FISICAS), registerWorklog(ROOM_INVENTORY_ENTITY_NAME), roomInventoryController.getArchived);
 router.get('/room-branch/:roomBranchId', verifyToken, registerWorklog(ROOM_INVENTORY_ENTITY_NAME), roomInventoryController.getAllByRoomBranch);
 router.get('/:id', verifyToken, registerWorklog(ROOM_INVENTORY_ENTITY_NAME), roomInventoryController.getById);
 router.put('/:id', verifyToken, authorize(PERMISSIONS.ACTUALIZAR_ESTADO_HABITACIONES), registerWorklog(ROOM_INVENTORY_ENTITY_NAME), roomInventoryController.update);

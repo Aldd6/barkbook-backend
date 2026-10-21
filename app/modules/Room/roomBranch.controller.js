@@ -13,12 +13,15 @@ const toResponseDTO = (roomBranch) => RoomBranchResponseDTO.parse({
 const create = async (req, res, next) => {
     try {
         const requestDTO = CreateRoomBranchDTO.parse(req.body);
-        const newRoomBranch = await roomBranchService.create(requestDTO);
-        return res.status(201).json({
+        const { roomBranch, restored } = await roomBranchService.create(requestDTO);
+        const status = restored ? 200 : 201;
+        return res.status(status).json({
             success: true,
-            status: 201,
-            message: "Configuracion de habitaciones creada exitosamente.",
-            roomBranch: toResponseDTO(newRoomBranch)
+            status,
+            message: restored
+                ? "La configuracion de habitaciones estaba archivada: se restauro con la nueva cantidad maxima."
+                : "Configuracion de habitaciones creada exitosamente.",
+            roomBranch: toResponseDTO(roomBranch)
         });
     } catch(error) {
         next(error);

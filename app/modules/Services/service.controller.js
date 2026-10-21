@@ -117,16 +117,34 @@ const getAll = async (req, res, next) => {
     }
 };
 
+const getAvailableForBooking = async (req, res, next) => {
+    try {
+        const { bookingId } = req.params;
+        const services = await serviceService.getAvailableForBooking(bookingId);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Servicios disponibles para la reserva obtenidos exitosamente.",
+            services: services.map(toResponseDTO)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
 const chargeToBooking = async (req, res, next) => {
     try {
         const { bookingId } = req.params;
         const requestDTO = ChargeServiceDTO.parse(req.body);
-        const { bill, balance } = await serviceService.chargeToBooking(bookingId, requestDTO);
+        const { bill, payment, balance } = await serviceService.chargeToBooking(bookingId, requestDTO);
         return res.status(201).json({
             success: true,
             status: 201,
-            message: "Servicio cargado a la cuenta de la reserva exitosamente.",
+            message: payment
+                ? "Servicio cargado y pagado con tarjeta exitosamente."
+                : "Servicio cargado a la cuenta de la reserva exitosamente. Se cobrara en recepcion.",
             bill: toBillResponseDTO(bill),
+            payment: payment ? toBillResponseDTO(payment) : null,
             balance
         });
     } catch(error) {
@@ -134,4 +152,4 @@ const chargeToBooking = async (req, res, next) => {
     }
 };
 
-module.exports = { create, update, remove, restore, getById, getAll, chargeToBooking };
+module.exports = { create, update, remove, restore, getById, getAll, getAvailableForBooking, chargeToBooking };

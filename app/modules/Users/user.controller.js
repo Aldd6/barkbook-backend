@@ -8,6 +8,7 @@ const create = async (req, res, next) => {
         const requestDTO = CreateUserDTO.parse(req.body);
         const newUser = await userService.create(requestDTO);
         const responseDTO = UserResponseDTO.parse({
+            id: newUser.id,
             uid: newUser.uid,
             rolId: newUser.rolId,
             username: newUser.username,
@@ -33,6 +34,7 @@ const update = async (req, res, next) => {
         const updatedUser = await userService.update(uid, requestDTO);
 
         const responseDTO = UserResponseDTO.parse({
+            id: updatedUser.id,
             uid: updatedUser.uid,
             rolId: updatedUser.rolId,
             username: updatedUser.username,
@@ -56,6 +58,7 @@ const remove = async (req, res, next) => {
         const { uid } = req.params;
         const removedUser = await userService.remove(uid);
         const responseDTO = UserResponseDTO.parse({
+            id: removedUser.id,
             uid: removedUser.uid,
             rolId: removedUser.rolId,
             username: removedUser.username,
@@ -79,6 +82,7 @@ const getUserByUid = async (req, res, next) => {
         const searchedUser = await userService.getByUid(uid);
 
         const responseDTO = UserResponseDTO.parse({
+            id: searchedUser.id,
             uid: searchedUser.uid,
             rolId: searchedUser.rolId,
             username: searchedUser.username,
@@ -100,6 +104,7 @@ const getAllUsers = async (req, res, next) => {
     try {
         const users = await userService.getAll();
         const responseDTO = users.map(usr => UserResponseDTO.parse({
+            id: usr.id,
             uid: usr.uid,
             rolId: usr.rolId,
             username: usr.username,

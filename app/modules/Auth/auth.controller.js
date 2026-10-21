@@ -4,6 +4,7 @@ const SignUpDTO = require('./DTOs/sign-up.js');
 const SignUpResponseDTO = require('./DTOs/sign-up-response.js');
 const MeResponseDTO = require('./DTOs/me-response.js');
 const { setRefreshTokenCookie, clearRefreshTokenCookie, REFRESH_TOKEN_COOKIE } = require('../../shared/utils/cookies.js');
+const { getFileUrl } = require('../../shared/config/s3.js');
 
 const signup = async (req, res, next) => {
     try {
@@ -84,8 +85,8 @@ const me = async (req, res, next) => {
                 roleName: user.Role.roleName,
                 profileCompleted: user.profileCompleted
             },
-            customer: user.Customer ? user.Customer.get({ plain: true }) : null,
-            employee: user.Employee ? user.Employee.get({ plain: true }) : null,
+            customer: user.Customer ? { ...user.Customer.get({ plain: true }), profilePicture: await getFileUrl(user.Customer.profilePicture) } : null,
+            employee: user.Employee ? { ...user.Employee.get({ plain: true }), profilePicture: await getFileUrl(user.Employee.profilePicture) } : null,
             permissions: user.Role.Permissions.map(permission => permission.permissionName)
         });
         return res.status(200).json({

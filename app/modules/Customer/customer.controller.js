@@ -4,8 +4,9 @@ const CreateCustomerDTO = require('./DTOs/create-customer.js');
 const UpdateCustomerDTO = require('./DTOs/update-customer.js');
 const CustomerResponseDTO = require('./DTOs/customer-response.js');
 const { setRefreshTokenCookie } = require('../../shared/utils/cookies.js');
+const { getFileUrl } = require('../../shared/config/s3.js');
 
-const toResponseDTO = (customer) => CustomerResponseDTO.parse({
+const toResponseDTO = async (customer) => CustomerResponseDTO.parse({
     id: customer.id,
     userId: customer.userId,
     cityId: customer.cityId,
@@ -17,7 +18,7 @@ const toResponseDTO = (customer) => CustomerResponseDTO.parse({
     addressLineOne: customer.addressLineOne,
     addressLineTwo: customer.addressLineTwo,
     phoneNumber: customer.phoneNumber,
-    profilePicture: customer.profilePicture,
+    profilePicture: await getFileUrl(customer.profilePicture),
     termsAcceptance: customer.termsAcceptance
 });
 
@@ -38,7 +39,7 @@ const create = async (req, res, next) => {
             success: true,
             status: 201,
             message: "Cliente creado exitosamente.",
-            customer: toResponseDTO(newCustomer),
+            customer: await toResponseDTO(newCustomer),
             accessToken
         });
     } catch(error) {
@@ -55,7 +56,7 @@ const update = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Cliente actualizado exitosamente.",
-            customer: toResponseDTO(updatedCustomer)
+            customer: await toResponseDTO(updatedCustomer)
         });
     } catch(error) {
         next(error);
@@ -70,7 +71,7 @@ const remove = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Cliente eliminado exitosamente.",
-            customer: toResponseDTO(removedCustomer)
+            customer: await toResponseDTO(removedCustomer)
         });
     } catch(error) {
         next(error);
@@ -85,7 +86,7 @@ const restore = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Cliente restaurado exitosamente.",
-            customer: toResponseDTO(restoredCustomer)
+            customer: await toResponseDTO(restoredCustomer)
         });
     } catch(error) {
         next(error);
@@ -100,7 +101,7 @@ const getById = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Cliente encontrado exitosamente.",
-            customer: toResponseDTO(customer)
+            customer: await toResponseDTO(customer)
         });
     } catch(error) {
         next(error);
@@ -114,11 +115,41 @@ const getAll = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Clientes obtenidos exitosamente.",
-            customers: customers.map(toResponseDTO)
+            customers: await Promise.all(customers.map(toResponseDTO))
         });
     } catch(error) {
         next(error);
     }
 };
 
-module.exports = { create, update, remove, restore, getById, getAll };
+const updateProfilePicture = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await customerService.updateProfilePicture(id, req.file);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Foto de perfil del cliente actualizada exitosamente.",
+            customer: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+const removeProfilePicture = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await customerService.removeProfilePicture(id);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Foto de perfil del cliente eliminada exitosamente.",
+            customer: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+module.exports = { create, update, remove, restore, getById, getAll, updateProfilePicture, removeProfilePicture };

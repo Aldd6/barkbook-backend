@@ -25,9 +25,6 @@ const CreateCustomerDTO = z.object({
         .optional(),
     phoneNumber: z.string().trim()
         .regex(/^\+502\d{8}$/, { message: "El numero de telefono debe tener el formato +502 seguido de 8 digitos." }),
-    profilePicture: z.string().trim()
-        .max(500, { message: "La referencia de la imagen no puede exceder los 500 caracteres." })
-        .optional(),
     termsAcceptance: z.boolean()
         .refine(val => val === true, { message: "Debe aceptar los terminos y condiciones para continuar." })
 }).superRefine((data, ctx) => {

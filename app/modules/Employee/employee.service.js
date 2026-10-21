@@ -5,9 +5,12 @@ const Branch = dbConnection.Branch;
 const City = dbConnection.City;
 const sequelize = dbConnection.sequelize;
 const { ApiError } = require('../../shared/utils/errors.js');
+const { replaceRecordFile, removeRecordFile } = require('../../shared/config/s3.js');
+
+const PROFILE_PICTURE_FOLDER = 'employees/profile-pictures';
 
 const create = async (createEmployeeDTO) => {
-    const { branchId, cityId, name, lastname, dpiNumber, addressLineOne, addressLineTwo, phoneNumber, profilePicture } = createEmployeeDTO;
+    const { branchId, cityId, name, lastname, dpiNumber, addressLineOne, addressLineTwo, phoneNumber } = createEmployeeDTO;
 
     const branchExists = await Branch.findByPk(branchId);
     if(!branchExists) throw new ApiError(`La sede con el ID ${branchId} no existe.`, "RESOURCE_NOT_FOUND");
@@ -26,8 +29,7 @@ const create = async (createEmployeeDTO) => {
         dpiNumber,
         addressLineOne,
         addressLineTwo,
-        phoneNumber,
-        profilePicture
+        phoneNumber
     });
     return newEmployee;
 }
@@ -97,4 +99,14 @@ const assignUser = async (employeeId, userId) => {
     return employee;
 }
 
-module.exports = { create, update, remove, restore, getById, getAll, assignUser };
+const updateProfilePicture = async (id, file) => {
+    const employee = await getById(id);
+    return replaceRecordFile(employee, 'profilePicture', PROFILE_PICTURE_FOLDER, file);
+}
+
+const removeProfilePicture = async (id) => {
+    const employee = await getById(id);
+    return removeRecordFile(employee, 'profilePicture');
+}
+
+module.exports = { create, update, remove, restore, getById, getAll, assignUser, updateProfilePicture, removeProfilePicture };

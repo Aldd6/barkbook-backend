@@ -10,7 +10,7 @@ const sequelize = dbConnection.sequelize;
 const Op = dbConnection.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, MOVEMENT_TYPE, PAYMENT_METHOD } = require('../../shared/constants/enums.js');
-const { getStripeClient } = require('../../shared/config/stripe.js');
+const { chargeCard } = require('../../shared/config/stripe.js');
 
 // Estados que todavia "ocupan" un cupo de la RoomBranch para efectos de
 // disponibilidad. FINALIZADA y CANCELADA liberan el cupo.
@@ -19,9 +19,6 @@ const PENDING_GRACE_PERIOD_DAYS = 5;
 // PDCN: pago inicial de la reserva. ENES: saldo de cargos agregados durante la
 // estancia (ej. servicios), que debe quedar en 0 antes del check-out.
 const PAYABLE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.ENES];
-// Token de prueba publico de Stripe para un pago con tarjeta exitoso en modo
-// test. Ver DTOs/create-booking.js para el contexto de por que existe.
-const DEFAULT_TEST_PAYMENT_METHOD = 'pm_card_visa';
 
 const nightsBetween = (checkInDate, checkOutDate) => {
     const msPerDay = 24 * 60 * 60 * 1000;
@@ -113,27 +110,12 @@ const create = async (createBookingDTO) => {
         let stripePaymentIntentId = null;
 
         if(paymentMethod === PAYMENT_METHOD.TARJETA) {
-            const stripeClient = getStripeClient();
-            let paymentIntent;
-            try {
-                paymentIntent = await stripeClient.paymentIntents.create({
-                    amount: Math.round(totalAmount * 100),
-                    currency: 'gtq',
-                    payment_method: stripePaymentMethodId || DEFAULT_TEST_PAYMENT_METHOD,
-                    payment_method_types: ['card'],
-                    confirm: true,
-                    off_session: true,
-                    error_on_requires_action: true,
-                    description: `Reserva BarkBook - Cliente #${customerId}`
-                });
-            } catch(err) {
-                throw new ApiError(`El pago con Stripe fue rechazado: ${err.message}`, "PAYMENT_FAILED");
-            }
-            if(paymentIntent.status !== 'succeeded') {
-                throw new ApiError(`El pago con Stripe no se pudo completar (estado: ${paymentIntent.status}).`, "PAYMENT_FAILED");
-            }
+            stripePaymentIntentId = await chargeCard({
+                amount: totalAmount,
+                paymentMethodId: stripePaymentMethodId,
+                description: `Reserva BarkBook - Cliente #${customerId}`
+            });
             bookingStatus = BOOKING_STATUS.CNFD;
-            stripePaymentIntentId = paymentIntent.id;
         }
 
         const booking = await Booking.create({
