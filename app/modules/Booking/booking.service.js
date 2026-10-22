@@ -11,7 +11,7 @@ const sequelize = dbConnection.sequelize;
 const Op = dbConnection.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, MOVEMENT_TYPE, PAYMENT_METHOD } = require('../../shared/constants/enums.js');
-const { chargeCard, toStripeCustomer } = require('../../shared/config/stripe.js');
+const { chargeCard, toStripeCustomer, getStripeClient } = require('../../shared/config/stripe.js');
 
 // Estados que todavia "ocupan" un cupo de la RoomBranch para efectos de
 // disponibilidad. FINALIZADA y CANCELADA liberan el cupo.
@@ -20,6 +20,44 @@ const PENDING_GRACE_PERIOD_DAYS = 5;
 // PDCN: pago inicial de la reserva. ENES: saldo de cargos agregados durante la
 // estancia (ej. servicios), que debe quedar en 0 antes del check-out.
 const PAYABLE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.ENES];
+
+const sumByMovement = (bills, movementType) => bills
+    .filter(bill => bill.movementType === movementType)
+    .reduce((sum, bill) => sum + parseFloat(bill.amount), 0);
+
+// Devuelve cada ABONO de la reserva con un movimiento de REEMBOLSO por el mismo
+// metodo de pago. Los pagos con tarjeta se reembolsan tambien en Stripe usando
+// el PaymentIntent guardado como referencia del ABONO; los demas (efectivo, POS,
+// transferencia) se devuelven en mostrador. `label` encabeza la descripcion.
+const refundBookingPayments = async (booking, transaction, label) => {
+    const bills = await BookingBill.findAll({ where: { bookingId: booking.id }, transaction });
+    const alreadyRefunded = sumByMovement(bills, MOVEMENT_TYPE.REEMBOLSO);
+    if(alreadyRefunded > 0) return [];
+
+    const payments = bills.filter(bill => bill.movementType === MOVEMENT_TYPE.ABONO);
+    const refunds = [];
+    for(const payment of payments) {
+        let reference = payment.reference;
+        if(payment.methodPayment === PAYMENT_METHOD.TARJETA && payment.reference) {
+            try {
+                const stripeRefund = await getStripeClient().refunds.create({ payment_intent: payment.reference });
+                reference = stripeRefund.id;
+            } catch(err) {
+                throw new ApiError(`No se pudo procesar el reembolso en Stripe: ${err.message}`, "PAYMENT_FAILED");
+            }
+        }
+
+        refunds.push(await BookingBill.create({
+            bookingId: booking.id,
+            movementType: MOVEMENT_TYPE.REEMBOLSO,
+            amount: payment.amount,
+            methodPayment: payment.methodPayment,
+            reference,
+            description: `${label} (${payment.methodPayment}) - Reserva #${booking.id}.`
+        }, { transaction }));
+    }
+    return refunds;
+}
 
 const nightsBetween = (checkInDate, checkOutDate) => {
     const msPerDay = 24 * 60 * 60 * 1000;
@@ -273,4 +311,4 @@ const getAllByCustomer = async (customerId) => {
     });
 }
 
-module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings, sweepExpiredBookings };
+module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings, sweepExpiredBookings, refundBookingPayments, ACTIVE_STATUSES };

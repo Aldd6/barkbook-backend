@@ -4,11 +4,12 @@ const CheckInPet = dbConnection.CheckInPet;
 const Booking = dbConnection.Booking;
 const BookingPet = dbConnection.BookingPet;
 const BookingBill = dbConnection.BookingBill;
+const BookingCancellation = dbConnection.BookingCancellation;
 const RoomInventory = dbConnection.RoomInventory;
 const sequelize = dbConnection.sequelize;
 const { ApiError } = require('../../shared/utils/errors.js');
-const { BOOKING_STATUS, CHECK_IN_STATUS, MOVEMENT_TYPE, PAYMENT_METHOD, ROOM_STATUS } = require('../../shared/constants/enums.js');
-const { getStripeClient } = require('../../shared/config/stripe.js');
+const { BOOKING_STATUS, CANCELLATION_STATUS, CHECK_IN_STATUS, MOVEMENT_TYPE, ROOM_STATUS } = require('../../shared/constants/enums.js');
+const { todayISO } = require('../../shared/utils/dates.js');
 const bookingService = require('../Booking/booking.service.js');
 
 // Solo las reservas que todavia no han iniciado su estancia pueden hacer check-in.
@@ -27,39 +28,6 @@ const withDetails = (checkIn) => CheckIn.findByPk(checkIn.id, {
         { model: RoomInventory }
     ]
 });
-
-// Devuelve cada ABONO de la reserva con un movimiento de REEMBOLSO por el mismo
-// metodo de pago. Los pagos con tarjeta se reembolsan tambien en Stripe usando
-// el PaymentIntent guardado como referencia del ABONO.
-const refundBookingPayments = async (booking, transaction) => {
-    const bills = await BookingBill.findAll({ where: { bookingId: booking.id }, transaction });
-    const alreadyRefunded = sumByMovement(bills, MOVEMENT_TYPE.REEMBOLSO);
-    if(alreadyRefunded > 0) return [];
-
-    const payments = bills.filter(bill => bill.movementType === MOVEMENT_TYPE.ABONO);
-    const refunds = [];
-    for(const payment of payments) {
-        let reference = payment.reference;
-        if(payment.methodPayment === PAYMENT_METHOD.TARJETA && payment.reference) {
-            try {
-                const stripeRefund = await getStripeClient().refunds.create({ payment_intent: payment.reference });
-                reference = stripeRefund.id;
-            } catch(err) {
-                throw new ApiError(`No se pudo procesar el reembolso en Stripe: ${err.message}`, "PAYMENT_FAILED");
-            }
-        }
-
-        refunds.push(await BookingBill.create({
-            bookingId: booking.id,
-            movementType: MOVEMENT_TYPE.REEMBOLSO,
-            amount: payment.amount,
-            methodPayment: payment.methodPayment,
-            reference,
-            description: `Reembolso por check-in cancelado (${payment.methodPayment}) - Reserva #${booking.id}.`
-        }, { transaction }));
-    }
-    return refunds;
-}
 
 const create = async (createCheckInDTO) => {
     const { bookingId, pets, customerAcceptsPartialAdmission, roomNumber, observations } = createCheckInDTO;
@@ -81,7 +49,16 @@ const create = async (createCheckInDTO) => {
             throw new ApiError(`No se puede hacer check-in de una reserva en estado "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
         }
 
-        const today = new Date().toISOString().slice(0, 10);
+        // Una solicitud de cancelacion pendiente debe resolverse antes de admitir a las mascotas.
+        const pendingCancellation = await BookingCancellation.findOne({
+            where: { bookingId, status: CANCELLATION_STATUS.PENDIENTE },
+            transaction
+        });
+        if(pendingCancellation) {
+            throw new ApiError(`La reserva #${bookingId} tiene una solicitud de cancelacion pendiente. Apruebela o rechacela antes de hacer el check-in.`, "RESOURCE_CONFLICT");
+        }
+
+        const today = todayISO();
         if(today < booking.checkInDate || today >= booking.checkOutDate) {
             throw new ApiError(`El check-in de esta reserva solo puede realizarse a partir del ${booking.checkInDate} y antes del ${booking.checkOutDate}.`, "INVALID_INPUT");
         }
@@ -127,7 +104,7 @@ const create = async (createCheckInDTO) => {
             // Al pasar a CANCELADA la reserva deja de contar para la disponibilidad
             // de la RoomBranch, liberando el espacio reservado.
             await booking.update({ bookingStatus: BOOKING_STATUS.CNCL, cancellationReason }, { transaction });
-            await refundBookingPayments(booking, transaction);
+            await bookingService.refundBookingPayments(booking, transaction, 'Reembolso por check-in cancelado');
 
             return checkIn;
         }

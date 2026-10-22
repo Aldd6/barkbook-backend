@@ -60,5 +60,6 @@ const authorizeFields = (fields, permissionName) => {
 authorize.assertPermission = assertPermission;
 authorize.assertKnownPermission = assertKnownPermission;
 authorize.authorizeFields = authorizeFields;
+authorize.ADMIN_ROLE_NAME = ADMIN_ROLE_NAME;
 
 module.exports = authorize;

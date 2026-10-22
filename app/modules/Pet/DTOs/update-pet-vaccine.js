@@ -1,4 +1,5 @@
 const z = require('zod');
+const { todayISO } = require('../../../shared/utils/dates.js');
 const { VACCINE_USE_ARRAY } = require('../../../shared/constants/enums.js');
 
 // petId no es editable: un registro de vacuna no se traspasa a otra mascota.
@@ -9,7 +10,7 @@ const UpdatePetVaccineDTO = z.object({
         .optional(),
     vaccineUse: z.enum(VACCINE_USE_ARRAY).optional(),
     dateOfPlacement: z.iso.date({ message: "La fecha de colocacion debe tener el formato YYYY-MM-DD." })
-        .refine(val => new Date(val) <= new Date(), { message: "La fecha de colocacion no puede ser en el futuro." })
+        .refine(val => val <= todayISO(), { message: "La fecha de colocacion no puede ser en el futuro." })
         .optional()
 });
 

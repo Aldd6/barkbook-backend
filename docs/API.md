@@ -15,6 +15,7 @@ de este documento no coincide con el código, manda el código (DTOs en
 | Formato | JSON (`Content-Type: application/json`) |
 | CORS | Orígenes en `CORS_ORIGIN` (separados por coma). Por defecto `http://localhost:5173` (Vite). |
 | Credenciales | Toda petición debe enviarse con `credentials: 'include'` (fetch) o `withCredentials: true` (axios): el refresh token viaja en cookie. |
+| Zona horaria | Las reglas de fecha ("hoy": entrada no pasada, ventana de check-in, fechas no futuras) usan `APP_TIMEZONE` (por defecto `America/Guatemala`), no UTC. |
 
 ---
 
@@ -137,10 +138,10 @@ puede tener la lista completa y además pasa cualquier chequeo).
 |---|---|
 | **Administrador** | Todos (además el back end lo deja pasar cualquier chequeo) |
 | **Gerente** | Ver reservas del dia · Gestionar habitaciones fisicas · Actualizar estado de habitaciones |
-| **Recepcionista** | Ver reservas del dia · Hacer check-in · Hacer check-out · Aplicar pagos cobrados en mostrador · Gestionar contactos de emergencia · Consultar cuenta de reservacion · Actualizar estado de habitaciones |
+| **Recepcionista** | Ver reservas del dia · Hacer check-in · Hacer check-out · Aplicar pagos cobrados en mostrador · Gestionar contactos de emergencia · Consultar cuenta de reservacion · Actualizar estado de habitaciones · Gestionar cancelaciones de reservacion |
 | **Cuidador** | Subir reportes de estado de mascota · Subir informes de servicios completados · Aplicar medicacion requerida a mascotas *(funcionalidad aún no implementada)* |
 | **Operador** | Subir informes de limpieza de habitaculos · Aplicar alimentacion a mascotas *(no implementadas)* · Actualizar estado de habitaciones |
-| **Cliente** | Gestionar contactos de emergencia · Consultar cuenta de reservacion · Gestionar mascotas · Gestionar reservaciones · Cargar servicios a reservacion · Ver reportes de estado de mascota |
+| **Cliente** | Gestionar contactos de emergencia · Consultar cuenta de reservacion · Gestionar mascotas · Gestionar reservaciones · Cargar servicios a reservacion · Ver reportes de estado de mascota · Solicitar cancelacion de reservacion |
 
 El token **no incluye los permisos**; los del usuario actual vienen en
 `GET /auth/me` (`permissions`). Usarlos para mostrar u ocultar opciones de menú
@@ -347,6 +348,25 @@ Toda respuesta de reserva incluye `balance`: el **saldo pendiente**, igual a la 
 Registra un `ABONO` por el saldo pendiente. Funciona en `PENDIENTE DE CONFIRMAR`
 (pasa a `CONFIRMADA`) y en `EN ESTANCIA` (salda servicios; el estado no cambia).
 
+### Cancelación de reservas
+El **Cliente** solicita la cancelación y un **Recepcionista de la sede de la reserva** la confirma o la rechaza.
+
+| Método | Ruta | Acceso | Clave |
+|---|---|---|---|
+| POST | `/booking-cancellations` | P: Solicitar cancelacion de reservacion · propio | `bookingCancellation` |
+| GET | `/booking-cancellations[?status=]` | P: Gestionar cancelaciones de reservacion · sede | `bookingCancellations` (cada una con `booking`) |
+| GET | `/booking-cancellations/booking/:bookingId` | P: Consultar cuenta de reservacion · propio | `bookingCancellations` (historial, la más reciente primero) |
+| PATCH | `/booking-cancellations/:id/approve` | P: Gestionar cancelaciones de reservacion · sede | `bookingCancellation`, `booking` |
+| PATCH | `/booking-cancellations/:id/reject` | P: Gestionar cancelaciones de reservacion · sede | `bookingCancellation` |
+
+- **Solicitar**: `{ bookingId, reason (5–255) }`. Solo reservas `RESERVA CONFIRMADA` o `RESERVA PENDIENTE DE CONFIRMAR`, y una solicitud `PENDIENTE` a la vez por reserva (409). La reserva no cambia hasta que se resuelva.
+- **Sede**: el personal solo lista y resuelve solicitudes de reservas de la sede de su perfil de empleado (`employee.branchId`); otra sede responde 403, igual que un usuario sin perfil de empleado. El Administrador ve y resuelve todas.
+- **Aprobar**: `{ resolutionNotes? }`. La reserva pasa a `CANCELADA` (libera el cupo) con `cancellationReason` = "Cancelada a solicitud del cliente: …", y cada `ABONO` genera un `REEMBOLSO`: los de tarjeta se reembolsan en Stripe; los de otros métodos se registran y el dinero se devuelve en mostrador. Si la reserva ya estaba `CANCELADA` (p. ej. por vencimiento del pago) solo se cierra la solicitud; si ya está `EN ESTANCIA` o `FINALIZADA`, 409 (hay que rechazarla).
+- **Rechazar**: `{ resolutionNotes (5–255, obligatorio) }`. La reserva no cambia; el cliente puede volver a solicitar.
+- Mientras haya una solicitud `PENDIENTE`, `POST /check-ins` responde 409.
+
+`bookingCancellation`: `{ id, bookingId, branchId, reason, status (CANCELLATION_STATUS), requestedByUserId, resolvedByUserId, resolutionNotes, requestedAt, resolvedAt, booking? }`.
+
 ### Check-in
 | Método | Ruta | Acceso | Clave |
 |---|---|---|---|
@@ -358,6 +378,7 @@ Registra un `ABONO` por el saldo pendiente. Funciona en `PENDIENTE DE CONFIRMAR`
 
 Body: `{ bookingId, pets: [{ bookingPetId, admitted, nonadmissionReason? (obligatorio si no se admite) }], customerAcceptsPartialAdmission? (obligatorio si se admiten solo algunas), roomNumber? (obligatorio si hay admitidas), observations? }`.
 - La reserva debe estar pagada (saldo 0); si no, 409 con el saldo y la fecha límite.
+- Solo desde la fecha de entrada y antes de la de salida (en `APP_TIMEZONE`). 409 si hay una solicitud de cancelación pendiente.
 - Si no se admite ninguna mascota (o el cliente no acepta admisión parcial), el check-in queda `CANCELADO`, la reserva `CANCELADA` y se reembolsan los pagos.
 - Si es exitoso: reserva `EN ESTANCIA` y habitación `OCUPADA`.
 
@@ -420,6 +441,9 @@ await api.put(`/pets/${id}/profile-picture`, fd); // sin fijar Content-Type a ma
 POST /bookings ──► PENDIENTE DE CONFIRMAR ──(PATCH confirm-payment)──► CONFIRMADA
       │ (tarjeta)                    └─(5 días sin pago)──► CANCELADA
       └──────────────────────────────────────────────────► CONFIRMADA
+PENDIENTE / CONFIRMADA ──(Cliente: POST /booking-cancellations)──► solicitud PENDIENTE
+      ──(Recepcionista de la sede: PATCH .../approve)──► CANCELADA + reembolsos
+      ──(Recepcionista de la sede: PATCH .../reject)───► la reserva sigue igual
 CONFIRMADA ──(POST /check-ins)──► EN ESTANCIA  (habitación OCUPADA)
 EN ESTANCIA ──(Cliente: POST /services/booking/:id/charge)
                  ├─ TARJETA ────────► pagado con Stripe, el saldo no cambia
@@ -448,6 +472,7 @@ Habitación: LIMPIEZA ──(PUT /room-inventory/:id { status: "DISPONIBLE" })�
 | SERVICE_PAYMENT_OPTION (cargo de servicios) | `TARJETA CREDITO/DEBITO`, `CARGO A CUENTA` |
 | MOVEMENT_TYPE | `CARGO`, `ABONO`, `REEMBOLSO` |
 | CHECK_IN_STATUS | `COMPLETADO`, `CANCELADO` |
+| CANCELLATION_STATUS | `PENDIENTE`, `APROBADA`, `RECHAZADA` |
 | SERVICE_TYPE | `ASEO`, `RECREACION`, `ALIMENTACION` |
 | TYPE_TRANSACTION (permisos) | `WRT`, `READ`, `UPD`, `ERS` |
 

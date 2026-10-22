@@ -1,4 +1,5 @@
 const z = require('zod');
+const { todayISO } = require('../../../shared/utils/dates.js');
 
 const CreatePetSanityDTO = z.object({
     petId: z.number(),
@@ -8,7 +9,7 @@ const CreatePetSanityDTO = z.object({
     isCronic: z.boolean(),
     isContagious: z.boolean(),
     sufferedSince: z.iso.date({ message: "La fecha de inicio debe tener el formato YYYY-MM-DD." })
-        .refine(val => new Date(val) <= new Date(), { message: "La fecha de inicio no puede ser en el futuro." }),
+        .refine(val => val <= todayISO(), { message: "La fecha de inicio no puede ser en el futuro." }),
     enduredUntil: z.iso.date({ message: "La fecha de finalizacion debe tener el formato YYYY-MM-DD." })
         .optional()
 }).superRefine((data, ctx) => {

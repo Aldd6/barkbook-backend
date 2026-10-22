@@ -109,6 +109,14 @@ const CHECK_IN_STATUS = Object.freeze({
     CANCELADO: "CANCELADO"
 })
 
+// Solicitud de cancelacion de una reserva: el Cliente la crea (PENDIENTE) y un
+// Recepcionista de la sede de la reserva la aprueba o la rechaza.
+const CANCELLATION_STATUS = Object.freeze({
+    PENDIENTE: "PENDIENTE",
+    APROBADA: "APROBADA",
+    RECHAZADA: "RECHAZADA"
+});
+
 const SERVICE_TYPE = Object.freeze({
     ASEO: "ASEO",
     RECREACION: "RECREACION",
@@ -134,6 +142,8 @@ const PERMISSIONS = Object.freeze({
     HACER_CHECK_OUT: "Hacer check-out de reservas",
     APLICAR_PAGOS_MOSTRADOR: "Aplicar pagos cobrados en mostrador",
     CARGAR_SERVICIOS_RESERVACION: "Cargar servicios a reservacion",
+    SOLICITAR_CANCELACION_RESERVACION: "Solicitar cancelacion de reservacion",
+    GESTIONAR_CANCELACIONES_RESERVACION: "Gestionar cancelaciones de reservacion",
     VER_REPORTES_ESTADO_MASCOTA: "Ver reportes de estado de mascota",
     SUBIR_REPORTES_ESTADO_MASCOTA: "Subir reportes de estado de mascota",
     SUBIR_INFORMES_SERVICIOS: "Subir informes de servicios completados",
@@ -175,6 +185,8 @@ module.exports = {
     MOVEMENT_TYPE_ARRAY: Object.values(MOVEMENT_TYPE),
     CHECK_IN_STATUS,
     CHECK_IN_STATUS_ARRAY: Object.values(CHECK_IN_STATUS),
+    CANCELLATION_STATUS,
+    CANCELLATION_STATUS_ARRAY: Object.values(CANCELLATION_STATUS),
     SERVICE_TYPE,
     SERVICE_TYPE_ARRAY: Object.values(SERVICE_TYPE),
     PERMISSIONS,

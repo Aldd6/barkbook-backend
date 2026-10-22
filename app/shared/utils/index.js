@@ -57,6 +57,7 @@ dbConnection.RoomInventory = require('../../modules/Room/roomInventory.model.js'
 dbConnection.Booking = require('../../modules/Booking/booking.model.js')(sequelize, Sequelize);
 dbConnection.BookingPet = require('../../modules/Booking/bookingPet.model.js')(sequelize, Sequelize);
 dbConnection.BookingBill = require('../../modules/Booking/bookingBill.model.js')(sequelize, Sequelize);
+dbConnection.BookingCancellation = require('../../modules/Booking/bookingCancellation.model.js')(sequelize, Sequelize);
 dbConnection.CheckIn = require('../../modules/CheckIn/checkIn.model.js')(sequelize, Sequelize);
 dbConnection.CheckInPet = require('../../modules/CheckIn/checkInPet.model.js')(sequelize, Sequelize);
 dbConnection.CheckOut = require('../../modules/CheckOut/CheckOut.model.js')(sequelize, Sequelize);

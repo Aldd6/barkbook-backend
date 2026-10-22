@@ -151,4 +151,4 @@ const getAutoCancelledBookings = async (req, res, next) => {
     }
 };
 
-module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings };
+module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings, toResponseDTO };
