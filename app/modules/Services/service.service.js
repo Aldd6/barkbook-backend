@@ -9,11 +9,13 @@ const CheckInPet = dbConnection.CheckInPet;
 const RoomBranch = dbConnection.RoomBranch;
 const RoomType = dbConnection.RoomType;
 const Pet = dbConnection.Pet;
+const Customer = dbConnection.Customer;
+const User = dbConnection.User;
 const sequelize = dbConnection.sequelize;
 const Op = dbConnection.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, CHECK_IN_STATUS, MOVEMENT_TYPE, PAYMENT_METHOD, SERVICE_PAYMENT_OPTION } = require('../../shared/constants/enums.js');
-const { getStripeClient, chargeCard } = require('../../shared/config/stripe.js');
+const { getStripeClient, chargeCard, toStripeCustomer } = require('../../shared/config/stripe.js');
 
 const roundMoney =(value) => Math.round(value * 100) / 100;
 
@@ -171,10 +173,17 @@ const chargeToBooking = async (bookingId, chargeServiceDTO) => {
 
             // El cobro con Stripe va al final, despues de todas las validaciones.
             if(paidByCard) {
+                const customer = await Customer.findByPk(booking.customerId, {
+                    include: [{ model: User, attributes: ['email'] }],
+                    paranoid: false,
+                    transaction
+                });
+                if(!customer) throw new ApiError(`El cliente de la reserva #${booking.id} no existe.`, "RESOURCE_NOT_FOUND");
                 stripePaymentIntentId = await chargeCard({
                     amount,
                     paymentMethodId: stripePaymentMethodId,
-                    description: `Servicio "${service.name}" - Reserva BarkBook #${booking.id}`
+                    description: `Servicio "${service.name}" - Reserva BarkBook #${booking.id}`,
+                    customer: toStripeCustomer(customer)
                 });
             }
 

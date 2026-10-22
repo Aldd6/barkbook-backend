@@ -23,7 +23,7 @@ const getAll = async (filters = {}) => {
 
     const logs = await Worklog.findAll({
         where,
-        order: [['createdAt', 'DESC']]
+        order: [['creadoEn', 'DESC']]
     });
     return logs;
 }

@@ -28,7 +28,8 @@ const toRoomResponseDTO = (room) => RoomInventoryResponseDTO.parse({
     roomBranchId: room.roomBranchId,
     roomNumber: room.roomNumber,
     status: room.status,
-    active: room.active
+    active: room.active,
+    archivedAt: room.archivadoEn ?? null
 });
 
 const create = async (req, res, next) => {

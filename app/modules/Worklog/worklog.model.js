@@ -34,7 +34,10 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.INTEGER,
             allowNull: false,
             validate: {
-                isIn: [[200,201,400,401,403,404,409,429,500]]
+                // cualquier codigo HTTP valido: una lista cerrada dejaba sin
+                // registrar respuestas como 304 (cache por ETag) o 402 (pago rechazado)
+                min: 100,
+                max: 599
             }
         },
         detail: {

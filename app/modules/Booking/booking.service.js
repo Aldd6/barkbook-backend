@@ -5,12 +5,13 @@ const BookingBill = dbConnection.BookingBill;
 const RoomBranch = dbConnection.RoomBranch;
 const RoomType = dbConnection.RoomType;
 const Customer = dbConnection.Customer;
+const User = dbConnection.User;
 const Pet = dbConnection.Pet;
 const sequelize = dbConnection.sequelize;
 const Op = dbConnection.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, MOVEMENT_TYPE, PAYMENT_METHOD } = require('../../shared/constants/enums.js');
-const { chargeCard } = require('../../shared/config/stripe.js');
+const { chargeCard, toStripeCustomer } = require('../../shared/config/stripe.js');
 
 // Estados que todavia "ocupan" un cupo de la RoomBranch para efectos de
 // disponibilidad. FINALIZADA y CANCELADA liberan el cupo.
@@ -48,7 +49,10 @@ const create = async (createBookingDTO) => {
         const roomType = await RoomType.findByPk(roomBranch.roomTypeId, { transaction });
         if(!roomType) throw new ApiError(`El tipo de habitacion con el ID ${roomBranch.roomTypeId} no existe.`, "RESOURCE_NOT_FOUND");
 
-        const customer = await Customer.findByPk(customerId, { transaction });
+        const customer = await Customer.findByPk(customerId, {
+            include: [{ model: User, attributes: ['email'] }],
+            transaction
+        });
         if(!customer) throw new ApiError(`El cliente con el ID ${customerId} no existe.`, "RESOURCE_NOT_FOUND");
 
         const pets = await Pet.findAll({
@@ -113,7 +117,8 @@ const create = async (createBookingDTO) => {
             stripePaymentIntentId = await chargeCard({
                 amount: totalAmount,
                 paymentMethodId: stripePaymentMethodId,
-                description: `Reserva BarkBook - Cliente #${customerId}`
+                description: `Reserva BarkBook - Cliente #${customerId}`,
+                customer: toStripeCustomer(customer)
             });
             bookingStatus = BOOKING_STATUS.CNFD;
         }
@@ -203,7 +208,7 @@ const sweepExpiredBookings = async () => {
     const expiredBookings = await Booking.findAll({
         where: {
             bookingStatus: BOOKING_STATUS.PDCN,
-            createdAt: { [Op.lte]: cutoff }
+            creadoEn: { [Op.lte]: cutoff }
         }
     });
 
@@ -227,7 +232,7 @@ const getPendingWithTimeRemaining = async () => {
 
     const now = Date.now();
     return pendingBookings.map(booking => {
-        const expiresAt = new Date(booking.createdAt.getTime() + PENDING_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(booking.creadoEn.getTime() + PENDING_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
         return {
             booking,
             expiresAt,

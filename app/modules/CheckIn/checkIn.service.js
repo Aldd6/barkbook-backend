@@ -136,7 +136,7 @@ const create = async (createCheckInDTO) => {
         const bills = await BookingBill.findAll({ where: { bookingId }, transaction });
         const remaining = roundMoney(sumByMovement(bills, MOVEMENT_TYPE.CARGO) - sumByMovement(bills, MOVEMENT_TYPE.ABONO));
         if(booking.bookingStatus === BOOKING_STATUS.PDCN || remaining > 0) {
-            const expiresAt = new Date(booking.createdAt.getTime() + PENDING_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+            const expiresAt = new Date(booking.creadoEn.getTime() + PENDING_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
             throw new ApiError(`La reserva #${bookingId} tiene un saldo pendiente de Q${remaining.toFixed(2)}. Registre el pago (PATCH /bookings/${bookingId}/confirm-payment) antes del ${expiresAt.toISOString()} y vuelva a realizar el check-in.`, "RESOURCE_CONFLICT");
         }
 
