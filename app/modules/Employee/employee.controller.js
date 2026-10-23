@@ -2,6 +2,7 @@ const employeeService = require('./employee.service.js');
 const CreateEmployeeDTO = require('./DTOs/create-employee.js');
 const UpdateEmployeeDTO = require('./DTOs/update-employee.js');
 const AssignEmployeeUserDTO = require('./DTOs/assign-employee-user.js');
+const UpdateEmployeePasswordDTO = require('./DTOs/update-employee-password.js');
 const EmployeeResponseDTO = require('./DTOs/employee-response.js');
 const { getFileUrl } = require('../../shared/config/s3.js');
 
@@ -125,6 +126,37 @@ const assignUser = async (req, res, next) => {
     }
 };
 
+const updatePassword = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { password } = UpdateEmployeePasswordDTO.parse(req.body);
+        const employee = await employeeService.updatePassword(id, password);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Contrasena del usuario del empleado actualizada exitosamente. Sus sesiones activas fueron cerradas.",
+            employee: await toResponseDTO(employee)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+const revokeUser = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const employee = await employeeService.revokeUser(id);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Usuario desvinculado del empleado exitosamente. Sus sesiones activas fueron cerradas.",
+            employee: await toResponseDTO(employee)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
 const updateProfilePicture = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -155,4 +187,4 @@ const removeProfilePicture = async (req, res, next) => {
     }
 };
 
-module.exports = { create, update, remove, restore, getById, getAll, assignUser, updateProfilePicture, removeProfilePicture };
+module.exports = { create, update, remove, restore, getById, getAll, assignUser, updatePassword, revokeUser, updateProfilePicture, removeProfilePicture };

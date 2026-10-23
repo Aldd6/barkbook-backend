@@ -8,11 +8,6 @@ const { replaceRecordFile, removeRecordFile } = require('../../shared/config/s3.
 
 const PROFILE_PICTURE_FOLDER = 'customers/profile-pictures';
 
-// Al crear el perfil de Customer se completa el perfil del usuario: a
-// diferencia de Employee (donde un admin asigna el usuario despues), aqui
-// el propio usuario ya autenticado llena su perfil en su primer login, y
-// ese create es lo que marca profileCompleted = true (habilitando, a futuro
-// cuando exista auth, el acceso normal en el siguiente login).
 const create = async (createCustomerDTO) => {
     const { userId, cityId, name, lastname, dpiNumber, nitOrCf, nitNumber, addressLineOne, addressLineTwo, phoneNumber, termsAcceptance } = createCustomerDTO;
 
@@ -28,7 +23,6 @@ const create = async (createCustomerDTO) => {
     const dpiExists = await Customer.findOne({ where: { dpiNumber } });
     if(dpiExists) throw new ApiError(`El DPI ${dpiNumber} ya esta registrado.`, "RESOURCE_CONFLICT");
 
-    // Un cliente CF no debe arrastrar un nitNumber, sin importar que se haya enviado.
     const normalizedNitNumber = nitOrCf ? nitNumber : null;
 
     const newCustomer = await sequelize.transaction(async (transaction) => {
@@ -63,8 +57,6 @@ const update = async (id, updateCustomerDTO) => {
         if(!cityExists) throw new ApiError(`El municipio con el ID ${updateCustomerDTO.cityId} no existe.`, "RESOURCE_NOT_FOUND");
     }
 
-    // El update es parcial, asi que la consistencia nitOrCf/nitNumber se
-    // resuelve combinando lo que ya esta guardado con lo que llega nuevo.
     const effectiveNitOrCf = updateCustomerDTO.nitOrCf ?? customer.nitOrCf;
     const effectiveNitNumber = updateCustomerDTO.nitNumber ?? customer.nitNumber;
 

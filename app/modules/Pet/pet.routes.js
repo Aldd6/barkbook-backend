@@ -18,7 +18,6 @@ router.put('/:id', verifyToken, authorize(PERMISSIONS.GESTIONAR_MASCOTAS), regis
 router.delete('/:id', verifyToken, authorize(PERMISSIONS.GESTIONAR_MASCOTAS), registerWorklog(PET_ENTITY_NAME), ensureCustomerOwnership(byPet(req => req.params.id)), petController.remove);
 router.patch('/:id/restore', verifyToken, authorize(PERMISSIONS.GESTIONAR_MASCOTAS), registerWorklog(PET_ENTITY_NAME), ensureCustomerOwnership(byPet(req => req.params.id)), petController.restore);
 
-// multipart/form-data con el archivo en el campo "file"
 router.put('/:id/profile-picture', verifyToken, authorize(PERMISSIONS.GESTIONAR_MASCOTAS), registerWorklog(PET_ENTITY_NAME), ensureCustomerOwnership(byPet(req => req.params.id)), uploadImage, petController.updateProfilePicture);
 router.delete('/:id/profile-picture', verifyToken, authorize(PERMISSIONS.GESTIONAR_MASCOTAS), registerWorklog(PET_ENTITY_NAME), ensureCustomerOwnership(byPet(req => req.params.id)), petController.removeProfilePicture);
 router.put('/:id/vaccination-card', verifyToken, authorize(PERMISSIONS.GESTIONAR_MASCOTAS), registerWorklog(PET_ENTITY_NAME), ensureCustomerOwnership(byPet(req => req.params.id)), uploadDocument, petController.updateVaccinationCard);

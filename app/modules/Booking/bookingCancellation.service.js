@@ -11,7 +11,6 @@ const { BOOKING_STATUS, CANCELLATION_STATUS } = require('../../shared/constants/
 const { ADMIN_ROLE_NAME } = require('../../shared/middlewares/authorize.js');
 const bookingService = require('./booking.service.js');
 
-// Solo se cancela una reserva que todavia no inicia su estancia.
 const CANCELLABLE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.CNFD];
 
 const bookingDetails = [{ model: BookingPet }, { model: BookingBill }];
@@ -21,8 +20,6 @@ const branchOfBooking = async (booking, transaction) => {
     return roomBranch?.branchId ?? null;
 }
 
-// Sede sobre la que puede resolver solicitudes el usuario de la sesion:
-// null = todas (Administrador); si no, la sede de su perfil de empleado.
 const resolveStaffBranchId = async (user) => {
     if(user.roleName === ADMIN_ROLE_NAME) return null;
     const employee = await Employee.findOne({ where: { userId: user.id } });
@@ -36,8 +33,6 @@ const assertSameBranch = (staffBranchId, bookingBranchId) => {
     }
 }
 
-// El Cliente solicita la cancelacion de su reserva (la pertenencia la valida
-// ensureCustomerOwnership en la ruta). Queda PENDIENTE hasta que recepcion la resuelva.
 const create = async ({ bookingId, reason }, user) => {
     return await sequelize.transaction(async (transaction) => {
         const booking = await Booking.findByPk(bookingId, { transaction, lock: transaction.LOCK.UPDATE });
@@ -62,8 +57,6 @@ const create = async ({ bookingId, reason }, user) => {
     });
 }
 
-// Solicitudes de la sede del usuario (todas para el Administrador), de la mas
-// reciente a la mas antigua. `status` filtra por estado.
 const getAll = async ({ status }, user) => {
     const staffBranchId = await resolveStaffBranchId(user);
     const cancellations = await BookingCancellation.findAll({
@@ -87,7 +80,6 @@ const getAll = async ({ status }, user) => {
     return cancellations;
 }
 
-// Historial de solicitudes de una reserva (lo consulta el Cliente en su detalle).
 const getByBooking = async (bookingId) => {
     const booking = await Booking.findByPk(bookingId);
     if(!booking) throw new ApiError(`La reserva con el ID ${bookingId} no existe.`, "RESOURCE_NOT_FOUND");
@@ -97,7 +89,6 @@ const getByBooking = async (bookingId) => {
     return cancellations;
 }
 
-// Carga y bloquea la solicitud PENDIENTE y su reserva, y valida la sede del usuario.
 const lockPendingRequest = async (id, user, transaction) => {
     const staffBranchId = await resolveStaffBranchId(user);
     const cancellation = await BookingCancellation.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
@@ -115,16 +106,12 @@ const lockPendingRequest = async (id, user, transaction) => {
     return { cancellation, booking };
 }
 
-// Aprueba la solicitud: la reserva pasa a CANCELADA (libera el cupo) y se
-// reembolsan sus pagos. Tarjeta: en Stripe; otros metodos: se registra el
-// REEMBOLSO y el dinero se devuelve en mostrador.
 const approve = async (id, { resolutionNotes }, user) => {
     const result = await sequelize.transaction(async (transaction) => {
         const { cancellation, booking } = await lockPendingRequest(id, user, transaction);
         let refunds = [];
 
         if(booking.bookingStatus === BOOKING_STATUS.CNCL) {
-            // Ya cancelada (p. ej. por vencimiento del plazo de pago): solo se cierra la solicitud.
             resolutionNotes = resolutionNotes || 'La reserva ya se encontraba cancelada.';
         } else {
             if(!CANCELLABLE_STATUSES.includes(booking.bookingStatus)) {
@@ -151,7 +138,6 @@ const approve = async (id, { resolutionNotes }, user) => {
     return { cancellation: result.cancellation, booking, refunds: result.refunds };
 }
 
-// Rechaza la solicitud; la reserva sigue igual y el cliente puede volver a solicitarla.
 const reject = async (id, { resolutionNotes }, user) => {
     return await sequelize.transaction(async (transaction) => {
         const { cancellation } = await lockPendingRequest(id, user, transaction);
@@ -165,4 +151,4 @@ const reject = async (id, { resolutionNotes }, user) => {
     });
 }
 
-module.exports = { create, getAll, getByBooking, approve, reject };
+module.exports = { create, getAll, getByBooking, approve, reject, resolveStaffBranchId };

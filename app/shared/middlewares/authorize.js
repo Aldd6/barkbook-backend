@@ -5,15 +5,12 @@ const { ApiError } = require('../utils/errors.js');
 const { PERMISSIONS_ARRAY } = require('../constants/enums.js');
 const ADMIN_ROLE_NAME = 'Administrador';
 
-// Falla al cargar las rutas si se usa un permiso que no existe en PERMISSIONS:
-// de lo contrario la ruta responderia 403 a todos menos al Administrador.
 const assertKnownPermission = (permissionName) => {
     if(!PERMISSIONS_ARRAY.includes(permissionName)) {
         throw new Error(`Permiso desconocido en authorize: "${permissionName}". Usa una constante de PERMISSIONS.`);
     }
 };
 
-// Lanza ApiError si el usuario de la sesion no tiene el permiso indicado.
 const assertPermission = async (user, permissionName) => {
     if(user.roleName === ADMIN_ROLE_NAME) return;
 
@@ -26,7 +23,6 @@ const assertPermission = async (user, permissionName) => {
     if(!hasPermission) throw new ApiError('No tiene permisos para realizar esta accion.', "UNAUTHORIZED_ACCESS");
 };
 
-//utiliza los claims en el JWT inyectados al firmar el token en el payload
 const authorize = (permissionName) => {
     assertKnownPermission(permissionName);
     return async (req, res, next) => {
@@ -40,8 +36,26 @@ const authorize = (permissionName) => {
     };
 };
 
-// Exige el permiso solo si el body trae alguno de los campos indicados (ej. que
-// un usuario pueda editar su cuenta, pero no cambiarse el rol a si mismo).
+const authorizeAny = (...permissionNames) => {
+    permissionNames.forEach(assertKnownPermission);
+    return async (req, res, next) => {
+        try {
+            if(!req.user) return next(new ApiError('Acceso denegado. Token de sesion no proporcionado.', "UNAUTHENTICATED"));
+            for(const permissionName of permissionNames) {
+                try {
+                    await assertPermission(req.user, permissionName);
+                    return next();
+                } catch(err) {
+                    if(err.flag !== "UNAUTHORIZED_ACCESS") throw err;
+                }
+            }
+            next(new ApiError('No tiene permisos para realizar esta accion.', "UNAUTHORIZED_ACCESS"));
+        } catch(err) {
+            next(err);
+        }
+    };
+};
+
 const authorizeFields = (fields, permissionName) => {
     assertKnownPermission(permissionName);
     return async (req, res, next) => {
@@ -60,6 +74,7 @@ const authorizeFields = (fields, permissionName) => {
 authorize.assertPermission = assertPermission;
 authorize.assertKnownPermission = assertKnownPermission;
 authorize.authorizeFields = authorizeFields;
+authorize.authorizeAny = authorizeAny;
 authorize.ADMIN_ROLE_NAME = ADMIN_ROLE_NAME;
 
 module.exports = authorize;

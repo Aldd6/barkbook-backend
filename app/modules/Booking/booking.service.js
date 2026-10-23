@@ -13,22 +13,14 @@ const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, MOVEMENT_TYPE, PAYMENT_METHOD } = require('../../shared/constants/enums.js');
 const { chargeCard, toStripeCustomer, getStripeClient } = require('../../shared/config/stripe.js');
 
-// Estados que todavia "ocupan" un cupo de la RoomBranch para efectos de
-// disponibilidad. FINALIZADA y CANCELADA liberan el cupo.
 const ACTIVE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.CNFD, BOOKING_STATUS.ENES];
 const PENDING_GRACE_PERIOD_DAYS = 5;
-// PDCN: pago inicial de la reserva. ENES: saldo de cargos agregados durante la
-// estancia (ej. servicios), que debe quedar en 0 antes del check-out.
 const PAYABLE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.ENES];
 
 const sumByMovement = (bills, movementType) => bills
     .filter(bill => bill.movementType === movementType)
     .reduce((sum, bill) => sum + parseFloat(bill.amount), 0);
 
-// Devuelve cada ABONO de la reserva con un movimiento de REEMBOLSO por el mismo
-// metodo de pago. Los pagos con tarjeta se reembolsan tambien en Stripe usando
-// el PaymentIntent guardado como referencia del ABONO; los demas (efectivo, POS,
-// transferencia) se devuelven en mostrador. `label` encabeza la descripcion.
 const refundBookingPayments = async (booking, transaction, label) => {
     const bills = await BookingBill.findAll({ where: { bookingId: booking.id }, transaction });
     const alreadyRefunded = sumByMovement(bills, MOVEMENT_TYPE.REEMBOLSO);
@@ -76,8 +68,6 @@ const create = async (createBookingDTO) => {
     const uniquePetIds = [...new Set(petIds)];
 
     const newBooking = await sequelize.transaction(async (transaction) => {
-        // Bloquea la RoomBranch: dos reservas concurrentes para la misma
-        // sede+tipo no pueden pasar ambas la validacion de disponibilidad.
         const roomBranch = await RoomBranch.findByPk(branchRoomId, {
             transaction,
             lock: transaction.LOCK.UPDATE
@@ -107,7 +97,6 @@ const create = async (createBookingDTO) => {
             throw new ApiError(`Todas las mascotas de la reserva deben ser de la especie admitida por este tipo de habitacion (${roomType.speciesType}).`, "INVALID_INPUT");
         }
 
-        // Una mascota no puede tener dos reservas activas (PDCN/CNFD/ENES) cuyo rango de fechas se traslape, sin importar la sede/habitacion.
         const overlappingPetBookings = await BookingPet.findAll({
             where: { petId: { [Op.in]: uniquePetIds } },
             include: [{
@@ -130,7 +119,6 @@ const create = async (createBookingDTO) => {
             throw new ApiError(`La(s) siguiente(s) mascota(s) ya tienen una reserva activa que se traslapa con las fechas solicitadas: ${conflictingPetNames}.`, "RESOURCE_CONFLICT");
         }
 
-        // Disponibilidad: cuenta reservas activas de esta misma RoomBranch cuyo rango de fechas se traslape con el solicitado.
         const overlappingCount = await Booking.count({
             where: {
                 branchRoomId,

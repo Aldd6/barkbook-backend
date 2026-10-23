@@ -15,7 +15,6 @@ router.put('/:id', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCus
 router.delete('/:id', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), customerController.remove);
 router.patch('/:id/restore', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), customerController.restore);
 
-// multipart/form-data con el archivo en el campo "file"
 router.put('/:id/profile-picture', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), uploadImage, customerController.updateProfilePicture);
 router.delete('/:id/profile-picture', verifyToken, registerWorklog(CUSTOMER_ENTITY_NAME), ensureCustomerOwnership(byCustomer(req => req.params.id)), customerController.removeProfilePicture);
 

@@ -1,9 +1,7 @@
 const serviceService = require('./service.service.js');
 const CreateServiceDTO = require('./DTOs/create-service.js');
 const UpdateServiceDTO = require('./DTOs/update-service.js');
-const ChargeServiceDTO = require('./DTOs/charge-service.js');
 const ServiceResponseDTO = require('./DTOs/service-response.js');
-const BookingBillResponseDTO = require('../Booking/DTOs/booking-bill-response.js');
 
 const toResponseDTO = (service) => ServiceResponseDTO.parse({
     id: service.id,
@@ -13,18 +11,6 @@ const toResponseDTO = (service) => ServiceResponseDTO.parse({
     speciesType: service.speciesType,
     isMultiGuest: service.isMultiGuest,
     rate: service.rate
-});
-
-const toBillResponseDTO = (bill) => BookingBillResponseDTO.parse({
-    id: bill.id,
-    bookingId: bill.bookingId,
-    serviceId: bill.serviceId,
-    quantity: bill.quantity,
-    movementType: bill.movementType,
-    amount: bill.amount,
-    methodPayment: bill.methodPayment,
-    reference: bill.reference,
-    description: bill.description
 });
 
 const create = async (req, res, next) => {
@@ -132,24 +118,4 @@ const getAvailableForBooking = async (req, res, next) => {
     }
 };
 
-const chargeToBooking = async (req, res, next) => {
-    try {
-        const { bookingId } = req.params;
-        const requestDTO = ChargeServiceDTO.parse(req.body);
-        const { bill, payment, balance } = await serviceService.chargeToBooking(bookingId, requestDTO);
-        return res.status(201).json({
-            success: true,
-            status: 201,
-            message: payment
-                ? "Servicio cargado y pagado con tarjeta exitosamente."
-                : "Servicio cargado a la cuenta de la reserva exitosamente. Se cobrara en recepcion.",
-            bill: toBillResponseDTO(bill),
-            payment: payment ? toBillResponseDTO(payment) : null,
-            balance
-        });
-    } catch(error) {
-        next(error);
-    }
-};
-
-module.exports = { create, update, remove, restore, getById, getAll, getAvailableForBooking, chargeToBooking };
+module.exports = { create, update, remove, restore, getById, getAll, getAvailableForBooking, toResponseDTO };

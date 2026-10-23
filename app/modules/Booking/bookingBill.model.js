@@ -18,8 +18,6 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: false,
             field: 'booking_id'
         },
-        // Solo se llena cuando el movimiento es un CARGO por un servicio del
-        // catalogo; los cargos de hospedaje, abonos y reembolsos quedan en null.
         serviceId: {
             type: Sequelize.INTEGER,
             references: {
@@ -29,8 +27,6 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: true,
             field: 'service_id'
         },
-        // Unidades cobradas del servicio: 1 si el servicio atiende a varios
-        // huespedes a la vez, o el numero de mascotas atendidas si es por mascota.
         quantity: {
             type: Sequelize.INTEGER,
             allowNull: true,
@@ -58,16 +54,11 @@ module.exports = (sequelize, Sequelize) => {
             },
             field: 'amount'
         },
-        // Un CARGO puede registrarse sin metodo de pago (ej. un servicio
-        // consumido durante la estancia que se paga despues); ABONO y
-        // REEMBOLSO siempre lo requieren.
         methodPayment: {
             type: Sequelize.ENUM(...PAYMENT_METHOD_ARRAY),
             allowNull: true,
             field: 'method_payment'
         },
-        // Ej. id de PaymentIntent de Stripe, numero de voucher de POS, o de
-        // transferencia bancaria. No aplica siempre (ej. EFECTIVO).
         reference: {
             type: Sequelize.STRING(150),
             allowNull: true,

@@ -3,7 +3,7 @@ const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = re
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { ApiError } = require('../utils/errors.js');
 
-let s3Client = null; //generar cliente S3 cuando se tengan las llaves
+let s3Client = null;
 
 const getS3Client = () => {
     if(!s3Client) {
@@ -22,9 +22,7 @@ const getS3Client = () => {
     return s3Client;
 }
 
-// El bucket es privado: en la base de datos se guarda solo la key del objeto y
-// al responder se genera una URL firmada temporal para que el front end la muestre.
-const SIGNED_URL_EXPIRES_IN = 60 * 60; // 1 hora
+const SIGNED_URL_EXPIRES_IN = 60 * 60;
 
 const EXTENSION_BY_MIMETYPE = {
     'image/jpeg': 'jpg',
@@ -33,7 +31,6 @@ const EXTENSION_BY_MIMETYPE = {
     'application/pdf': 'pdf'
 };
 
-// Sube el archivo bajo <folder>/<uuid>.<ext> y devuelve la key generada.
 const uploadFile = async ({ folder, buffer, mimetype }) => {
     const key = `${folder}/${crypto.randomUUID()}.${EXTENSION_BY_MIMETYPE[mimetype]}`;
     try {
@@ -49,8 +46,6 @@ const uploadFile = async ({ folder, buffer, mimetype }) => {
     return key;
 }
 
-// Borrar es best-effort: si falla, el registro ya apunta al archivo nuevo y el
-// objeto viejo solo queda huerfano en el bucket, asi que no se interrumpe la peticion.
 const deleteFile = async (key) => {
     if(!key) return;
     try {
@@ -63,7 +58,6 @@ const deleteFile = async (key) => {
     }
 }
 
-// La firma se calcula localmente (no hace llamada de red).
 const getFileUrl = async (key) => {
     if(!key) return null;
     return getSignedUrl(getS3Client(), new GetObjectCommand({
@@ -72,8 +66,6 @@ const getFileUrl = async (key) => {
     }), { expiresIn: SIGNED_URL_EXPIRES_IN });
 }
 
-// Sube el archivo nuevo, apunta el campo del registro a su key y despues borra el
-// anterior. Si falla el update en la base de datos se borra el archivo recien subido.
 const replaceRecordFile = async (record, field, folder, file) => {
     const previousKey = record[field];
     const key = await uploadFile({ folder, buffer: file.buffer, mimetype: file.mimetype });

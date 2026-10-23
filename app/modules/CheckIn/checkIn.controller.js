@@ -2,6 +2,10 @@ const checkInService = require('./checkIn.service.js');
 const CreateCheckInDTO = require('./DTOs/create-check-in.js');
 const CheckInResponseDTO = require('./DTOs/check-in-response.js');
 const CheckInPetResponseDTO = require('./DTOs/check-in-pet-response.js');
+const CheckInBookingPetResponseDTO = require('./DTOs/check-in-booking-pet-response.js');
+const PetResponseDTO = require('../Pet/DTOs/pet-response.js');
+const PetVaccineResponseDTO = require('../Pet/DTOs/pet-vaccine-response.js');
+const { getFileUrl } = require('../../shared/config/s3.js');
 const RoomInventoryResponseDTO = require('../Room/DTOs/room-inventory-response.js');
 const { CHECK_IN_STATUS } = require('../../shared/constants/enums.js');
 
@@ -32,6 +36,35 @@ const toRoomResponseDTO = (room) => RoomInventoryResponseDTO.parse({
     archivedAt: room.archivadoEn ?? null
 });
 
+const toBookingPetResponseDTO = async (bookingPet) => {
+    const pet = bookingPet.Pet;
+    return CheckInBookingPetResponseDTO.parse({
+        bookingPetId: bookingPet.id,
+        pet: PetResponseDTO.parse({
+            id: pet.id,
+            customerId: pet.customerId,
+            name: pet.name,
+            species: pet.species,
+            sex: pet.sex,
+            birthday: pet.birthday,
+            size: pet.size,
+            actualWeight: pet.actualWeight,
+            unitOfMeasureWeight: pet.unitOfMeasureWeight,
+            sociabilityLevel: pet.sociabilityLevel,
+            isNeutered: pet.isNeutered,
+            vaccinationCard: await getFileUrl(pet.vaccinationCard),
+            profilePicture: await getFileUrl(pet.profilePicture)
+        }),
+        vaccines: (pet.PetVaccines || []).map(vaccine => PetVaccineResponseDTO.parse({
+            id: vaccine.id,
+            petId: vaccine.petId,
+            vaccineName: vaccine.vaccineName,
+            vaccineUse: vaccine.vaccineUse,
+            dateOfPlacement: vaccine.dateOfPlacement
+        }))
+    });
+};
+
 const create = async (req, res, next) => {
     try {
         const requestDTO = CreateCheckInDTO.parse(req.body);
@@ -59,6 +92,21 @@ const getAvailableRoomsForBooking = async (req, res, next) => {
             status: 200,
             message: "Habitaciones disponibles para la reserva obtenidas exitosamente.",
             roomInventory: rooms.map(toRoomResponseDTO)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+const getPetsForBooking = async (req, res, next) => {
+    try {
+        const { bookingId } = req.params;
+        const bookingPets = await checkInService.getPetsForBooking(bookingId);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Mascotas de la reserva obtenidas exitosamente.",
+            pets: await Promise.all(bookingPets.map(toBookingPetResponseDTO))
         });
     } catch(error) {
         next(error);
@@ -109,4 +157,4 @@ const getAll = async (req, res, next) => {
     }
 };
 
-module.exports = { create, getAvailableRoomsForBooking, getById, getByBooking, getAll };
+module.exports = { create, getAvailableRoomsForBooking, getPetsForBooking, getById, getByBooking, getAll };

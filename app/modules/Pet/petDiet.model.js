@@ -55,11 +55,6 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: true,
             field: 'observations'
         },
-        // Solo debe existir una dieta activa por mascota a la vez. Esa regla
-        // NO se enforce aqui: la garantiza petDiet.service.js (desactivando
-        // las demas dentro de una transaccion) mas un indice unico parcial
-        // (pet_id) WHERE active_diet = true como defensa a nivel de base de
-        // datos, ver el bloque `indexes` abajo.
         activeDiet: {
             type: Sequelize.BOOLEAN,
             allowNull: false,

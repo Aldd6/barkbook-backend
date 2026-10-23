@@ -7,16 +7,10 @@ const Op = dbConnection.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { ROOM_STATUS } = require('../../shared/constants/enums.js');
 
-// Unica forma de crear habitaciones: en bulk, a partir de sede + tipo de
-// habitacion + cantidad. Nunca se expone un create individual porque el
-// numero de habitacion depende del prefijo del RoomType y de cuantas
-// habitaciones ya existen para esa RoomBranch.
 const generateBulk = async (generateRoomInventoryDTO) => {
     const { branchId, roomTypeId, quantity } = generateRoomInventoryDTO;
 
     const newRooms = await sequelize.transaction(async (transaction) => {
-        // Bloquea la fila de RoomBranch durante la transaccion: si dos
-        // solicitudes de generacion llegan a la vez para la misma sede+tipo,
         const roomBranch = await RoomBranch.findOne({
             where: { branchId, roomTypeId },
             transaction,
@@ -27,16 +21,11 @@ const generateBulk = async (generateRoomInventoryDTO) => {
         const roomType = await RoomType.findByPk(roomTypeId, { transaction });
         if(!roomType) throw new ApiError(`El tipo de habitacion con el ID ${roomTypeId} no existe.`, "RESOURCE_NOT_FOUND");
 
-        // El cupo (maximumQuantity) solo considera habitaciones no archivadas: las
-        // archivadas no ocupan espacio.
         const currentCount = await RoomInventory.count({
             where: { roomBranchId: roomBranch.id },
             transaction
         });
 
-        // El consecutivo, en cambio, parte del numero mas alto ya usado en la
-        // RoomBranch, incluyendo archivadas: siguen en la tabla y el indice
-        // unico (room_branch_id, room_number) las considera.
         const existingRooms = await RoomInventory.findAll({
             where: { roomBranchId: roomBranch.id },
             attributes: ['roomNumber'],
@@ -53,8 +42,6 @@ const generateBulk = async (generateRoomInventoryDTO) => {
             throw new ApiError(`No se pueden generar ${quantity} habitaciones: solo quedan ${availableSlots} espacio(s) disponible(s) de un maximo de ${roomBranch.maximumQuantity} para esta sede y tipo de habitacion.`, "RESOURCE_CONFLICT");
         }
 
-        // padStart no recorta: si el consecutivo excede el relleno (ej. maximo 9
-        // y siguiente 10) el numero simplemente queda con mas digitos (STD10).
         const padLength = String(roomBranch.maximumQuantity).length;
         const roomsToCreate = [];
         for(let i = 1; i <= quantity; i++) {
@@ -73,8 +60,6 @@ const generateBulk = async (generateRoomInventoryDTO) => {
     return newRooms;
 }
 
-// Solo status/active: roomBranchId y roomNumber son de solo lectura despues
-// de generada la habitacion.
 const update = async (id, updateRoomInventoryDTO) => {
     const room = await RoomInventory.findByPk(id);
     if(!room) throw new ApiError(`La habitacion con el ID ${id} no existe.`, "RESOURCE_NOT_FOUND");
@@ -90,9 +75,6 @@ const remove = async (id) => {
     return room;
 }
 
-// Como las archivadas no ocupan cupo, restaurar puede exceder maximumQuantity
-// si mientras tanto se generaron otras: se valida bajo el mismo lock de
-// RoomBranch que usa generateBulk.
 const restore = async (id) => {
     return await sequelize.transaction(async (transaction) => {
         const room = await RoomInventory.findOne({
@@ -140,8 +122,6 @@ const getAllByRoomBranch = async (roomBranchId) => {
     return rooms;
 }
 
-// Solo habitaciones archivadas (soft delete), opcionalmente filtradas por
-// RoomBranch, para poder obtener el id que pide restore.
 const getArchived = async (roomBranchId) => {
     const where = { archivadoEn: { [Op.ne]: null } };
     if(roomBranchId !== undefined) {

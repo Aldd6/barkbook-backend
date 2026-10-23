@@ -2,7 +2,6 @@ const z = require('zod');
 const { todayISO } = require('../../../shared/utils/dates.js');
 const { PET_SPECIES_ARRAY, SEX_ARRAY, PET_SIZE_ARRAY, UNIT_MEASURE_WEIGHT_PET_ARRAY } = require('../../../shared/constants/enums.js');
 
-// customerId no es editable: la mascota no cambia de dueño por un update normal.
 const UpdatePetDTO = z.object({
     name: z.string().trim()
         .min(1, { message: "El nombre de la mascota es obligatorio." })

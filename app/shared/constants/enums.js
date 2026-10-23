@@ -90,14 +90,6 @@ const PAYMENT_METHOD = Object.freeze({
     TRANSFERENCIA: "TRANSFERENCIA"
 });
 
-// Como paga el Cliente un servicio que se carga durante la estancia: con
-// tarjeta (Stripe, al momento) o a la cuenta de la reserva, que el
-// Recepcionista cobra en mostrador antes o durante el check-out.
-const SERVICE_PAYMENT_OPTION = Object.freeze({
-    TARJETA: PAYMENT_METHOD.TARJETA,
-    CARGO_A_CUENTA: "CARGO A CUENTA"
-});
-
 const MOVEMENT_TYPE = Object.freeze({
     CARGO: "CARGO",
     ABONO: "ABONO",
@@ -109,12 +101,16 @@ const CHECK_IN_STATUS = Object.freeze({
     CANCELADO: "CANCELADO"
 })
 
-// Solicitud de cancelacion de una reserva: el Cliente la crea (PENDIENTE) y un
-// Recepcionista de la sede de la reserva la aprueba o la rechaza.
 const CANCELLATION_STATUS = Object.freeze({
     PENDIENTE: "PENDIENTE",
     APROBADA: "APROBADA",
     RECHAZADA: "RECHAZADA"
+});
+
+const SERVICE_ORDER_STATUS = Object.freeze({
+    PENDIENTE: "PENDIENTE",
+    COMPLETADO: "COMPLETADO",
+    CANCELADO: "CANCELADO"
 });
 
 const SERVICE_TYPE = Object.freeze({
@@ -179,8 +175,6 @@ module.exports = {
     BOOKING_STATUS_ARRAY: Object.values(BOOKING_STATUS),
     PAYMENT_METHOD,
     PAYMENT_METHOD_ARRAY: Object.values(PAYMENT_METHOD),
-    SERVICE_PAYMENT_OPTION,
-    SERVICE_PAYMENT_OPTION_ARRAY: Object.values(SERVICE_PAYMENT_OPTION),
     MOVEMENT_TYPE,
     MOVEMENT_TYPE_ARRAY: Object.values(MOVEMENT_TYPE),
     CHECK_IN_STATUS,
@@ -189,6 +183,8 @@ module.exports = {
     CANCELLATION_STATUS_ARRAY: Object.values(CANCELLATION_STATUS),
     SERVICE_TYPE,
     SERVICE_TYPE_ARRAY: Object.values(SERVICE_TYPE),
+    SERVICE_ORDER_STATUS,
+    SERVICE_ORDER_STATUS_ARRAY: Object.values(SERVICE_ORDER_STATUS),
     PERMISSIONS,
     PERMISSIONS_ARRAY: Object.values(PERMISSIONS)
 }

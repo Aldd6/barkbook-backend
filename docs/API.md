@@ -7,6 +7,89 @@ de este documento no coincide con el código, manda el código (DTOs en
 
 ---
 
+## 0. Cambios recientes que debe aplicar el front end (2026-10-22)
+
+Resumen de lo que cambió en el back end y qué hay que ajustar en cada pantalla.
+El detalle de cada endpoint está en la sección 5 (Servicios y Check-out).
+
+### 0.1 Servicios: contratar ya no carga a la cuenta ⚠️ cambio incompatible
+
+Antes el Cliente "cargaba" un servicio y el `CARGO` (o el cobro con tarjeta) se
+registraba al instante. Ahora el Cliente **contrata** y se crea una **orden de
+servicio `PENDIENTE`**. El `CARGO` se registra en la cuenta de la reserva recién
+cuando un **Cuidador** de la sede la marca como completada. Los servicios ya no
+se pagan con tarjeta: el saldo se cobra en mostrador, igual que antes con
+"cargo a cuenta".
+
+| | Antes | Ahora |
+|---|---|---|
+| Endpoint | `POST /services/booking/:bookingId/charge` | `POST /service-orders/booking/:bookingId` (la ruta anterior ya no existe: 404) |
+| Body | `{ serviceId, paymentMethod, petIds?, stripePaymentMethodId?, description? }` | `{ serviceId, petIds?, description? }`. Si se envían `paymentMethod` o `stripePaymentMethodId`, se ignoran. |
+| Respuesta | `bill`, `payment`, `balance` | `serviceOrders` (arreglo). El `balance` de la reserva **no cambia** al contratar. |
+| Servicio por mascota (`isMultiGuest: false`) para 2 mascotas | 1 cargo con `quantity: 2` | **2 órdenes**, una por mascota, que se completan y cargan por separado |
+| Enum `SERVICE_PAYMENT_OPTION` | `TARJETA CREDITO/DEBITO`, `CARGO A CUENTA` | **Eliminado**. Nuevo `SERVICE_ORDER_STATUS`: `PENDIENTE`, `COMPLETADO`, `CANCELADO` |
+
+**Qué ajustar por pantalla**
+
+- **Cliente → contratar servicio** (reserva `EN ESTANCIA`)
+  - Quitar el selector de método de pago y Stripe Elements de esta pantalla.
+  - El catálogo se sigue obteniendo con `GET /services/booking/:bookingId` (sin cambios).
+  - Enviar `POST /service-orders/booking/:bookingId`. Mensaje sugerido: "Se cargará a tu cuenta cuando el cuidador lo complete".
+  - Mostrar "Mis servicios" con `GET /service-orders/booking/:bookingId`: `service.name`, `pets[].name`, `amount`, `status`, `requestedAt`. Si `status` es `PENDIENTE`, ofrecer **Cancelar** (pedir motivo de 5 a 255 caracteres → `PATCH /service-orders/:id/cancel`).
+- **Cuidador → nueva pantalla "Servicios pendientes"**
+  - Mostrar la opción de menú si `GET /auth/me` → `permissions` incluye `Subir informes de servicios completados`.
+  - Listar con `GET /service-orders?status=PENDIENTE`. El back end ya filtra por la sede del empleado y ordena de la más antigua a la más reciente. Mostrar `service.name`, `pets[].name`, `description` (indicaciones del cliente), `bookingId` y `requestedAt`.
+  - **Completar**: modal con informe opcional (`resolutionNotes`, máximo 255) → `PATCH /service-orders/:id/complete`. La respuesta trae `serviceOrder`, `bill` (el cargo generado) y `balance`.
+  - **Cancelar**: motivo obligatorio → `PATCH /service-orders/:id/cancel`.
+  - Si el usuario no tiene perfil de empleado o la orden es de otra sede, responde 403. Mostrar el `message`.
+- **Recepcionista → check-out**
+  - Antes de `POST /check-outs`, consultar `GET /service-orders/booking/:bookingId`. Si hay órdenes `PENDIENTE`, mostrarlas: hay que esperar a que el Cuidador las complete o cancelarlas desde ahí (`PATCH /service-orders/:id/cancel` con motivo).
+  - Si se intenta el check-out con órdenes pendientes, `POST /check-outs` responde **409** con los IDs de esas órdenes.
+  - Después de completar órdenes, volver a pedir `GET /bookings/:id`, porque el `balance` pudo subir.
+- **Cuenta de la reserva (Cliente y Recepcionista)**
+  - En `booking.bill` los `CARGO` de servicios aparecen **solo cuando la orden se completa**. Lo contratado pero aún no realizado se ve en `/service-orders/booking/:bookingId`.
+  - Ya no se crean `ABONO` con tarjeta por servicios. Cada `CARGO` de servicio trae `quantity: 1` y `methodPayment: null`.
+
+**Errores nuevos a manejar**
+
+| Endpoint | Código | Cuándo |
+|---|---|---|
+| `POST /service-orders/booking/:bookingId` | 409 | La reserva no está `EN ESTANCIA`, el servicio no se presta en la sede o no hay mascotas admitidas |
+| `POST /service-orders/booking/:bookingId` | 400 | Mascota no admitida en el check-in o de otra especie que la del servicio |
+| `PATCH /service-orders/:id/complete` / `cancel` | 409 | La orden ya fue completada o cancelada, o la reserva ya no está `EN ESTANCIA` |
+| `PATCH /service-orders/:id/complete` / `cancel` | 403 | Empleado de otra sede o sin perfil de empleado. Cliente que no es dueño de la reserva. |
+| `PATCH /service-orders/:id/cancel` | 400 | Falta el motivo o tiene menos de 5 caracteres |
+| `POST /check-outs` | 409 | Hay órdenes de servicio `PENDIENTE` |
+
+### 0.2 Correcciones sin cambio de contrato
+
+No requieren cambios en el front end, pero si había parches para estos errores, se pueden quitar:
+
+- `GET /bookings/pending`, `GET /bookings/auto-cancelled` y la cancelación automática a los 5 días respondían **500**. Ya funcionan y devuelven `expiresAt` y `hoursRemaining` correctos.
+- `POST /check-ins` con saldo pendiente respondía **500**. Ahora responde **409** con el saldo y la fecha límite de pago.
+- `GET /check-ins/booking/:bookingId/available-rooms` respondía **500**. Ahora cada habitación trae `archivedAt` (siempre `null` en este listado), igual que en `/room-inventory`.
+- Los pagos con tarjeta (reservas) quedan a nombre del cliente en Stripe, no como "cliente invitado". No cambia el body ni la respuesta.
+
+### 0.3 Empleados: contraseña y desvincular usuario (nuevo)
+
+Dos endpoints nuevos para la pantalla **Modificar perfil de empleado** (permiso `Gestionar empleados`, es decir, el Administrador):
+
+| Acción en pantalla | Endpoint | Body | Respuesta |
+|---|---|---|---|
+| Cambiar contraseña del usuario | `PATCH /employees/:id/password` | `{ password }` (8–72 caracteres) | `employee` |
+| Revocar (desvincular) usuario | `PATCH /employees/:id/revoke-user` | sin body | `employee` con `userId: null` |
+
+- Mostrar ambas acciones solo si `employee.userId` no es `null`. Si no, el back end responde 409. Si `userId` es `null`, ofrecer "Asignar usuario" (`PATCH /employees/:id/assign-user`, sin cambios).
+- Pedir confirmación antes de revocar: el empleado pierde el acceso. Las dos acciones cierran sus sesiones (en menos de 15 min deja de poder usar la app y debe iniciar sesión otra vez).
+- Validar en el formulario el mínimo de 8 caracteres. Si no se cumple, la API responde 400 con `details[].field = "password"`.
+- Revocar no elimina la cuenta: sigue apareciendo en `GET /users` y se puede volver a asignar.
+
+### 0.4 Check-in: mascotas y carnet de vacunación (nuevo)
+
+`GET /check-ins/booking/:bookingId/pets` (permiso `Hacer check-in de reservas`) devuelve las mascotas de la reserva. Cada una trae sus datos, la imagen del carnet (`pet.vaccinationCard`) y sus vacunas registradas (`vaccines`). Es para la pantalla de check-in: mostrar cada mascota con su carnet y usar `bookingPetId` al enviar `pets` en `POST /check-ins`. El formato está en la sección 5 (Check-in).
+
+---
+
 ## 1. Conexión
 
 | Concepto | Valor |
@@ -139,7 +222,7 @@ puede tener la lista completa y además pasa cualquier chequeo).
 | **Administrador** | Todos (además el back end lo deja pasar cualquier chequeo) |
 | **Gerente** | Ver reservas del dia · Gestionar habitaciones fisicas · Actualizar estado de habitaciones |
 | **Recepcionista** | Ver reservas del dia · Hacer check-in · Hacer check-out · Aplicar pagos cobrados en mostrador · Gestionar contactos de emergencia · Consultar cuenta de reservacion · Actualizar estado de habitaciones · Gestionar cancelaciones de reservacion |
-| **Cuidador** | Subir reportes de estado de mascota · Subir informes de servicios completados · Aplicar medicacion requerida a mascotas *(funcionalidad aún no implementada)* |
+| **Cuidador** | Subir informes de servicios completados (órdenes de servicio de su sede) · Subir reportes de estado de mascota · Aplicar medicacion requerida a mascotas *(estas dos aún no implementadas)* |
 | **Operador** | Subir informes de limpieza de habitaculos · Aplicar alimentacion a mascotas *(no implementadas)* · Actualizar estado de habitaciones |
 | **Cliente** | Gestionar contactos de emergencia · Consultar cuenta de reservacion · Gestionar mascotas · Gestionar reservaciones · Cargar servicios a reservacion · Ver reportes de estado de mascota · Solicitar cancelacion de reservacion |
 
@@ -297,21 +380,29 @@ Mismo patrón para los tres recursos:
 | GET | `/service-branches/branch/:branchId` | token | `serviceBranches` (incluye `service` completo) |
 | POST / DELETE / restore | `/service-branches[/:id]` | P: Gestionar catalogo de servicios | `serviceBranch` |
 | GET | `/services/booking/:bookingId` | P: Cargar servicios a reservacion · propio | `services` (solo los de la sede de la reserva) |
-| POST | `/services/booking/:bookingId/charge` | P: Cargar servicios a reservacion · propio | `bill`, `payment`, `balance` |
+| POST | `/service-orders/booking/:bookingId` | P: Cargar servicios a reservacion · propio | `serviceOrders` |
+| GET | `/service-orders?status=` | P: Subir informes de servicios completados (solo su sede) | `serviceOrders` |
+| GET | `/service-orders/booking/:bookingId` | P: Consultar cuenta de reservacion **o** Subir informes de servicios completados · propio | `serviceOrders` |
+| PATCH | `/service-orders/:id/complete` | P: Subir informes de servicios completados (solo su sede) | `serviceOrder`, `bill`, `balance` |
+| PATCH | `/service-orders/:id/cancel` | P: Cargar servicios a reservacion · propio, **o** Subir informes de servicios completados / Hacer check-out (solo su sede) | `serviceOrder` |
 
 - **Servicio**: `{ name, description?, serviceType (SERVICE_TYPE), speciesType? (null = cualquier especie), isMultiGuest, rate }`.
 - **Asignar a sede**: `{ branchId, serviceId }`. Reasignar uno retirado lo restaura.
-#### Cargar servicios durante la estancia (lo hace el Cliente)
-El **Cliente** agrega los servicios que quiera a su reserva `EN ESTANCIA`. El Recepcionista no carga servicios: solo revisa la cuenta y cobra el saldo.
+#### Servicios durante la estancia: el Cliente contrata y el Cuidador completa
+El **Cliente** contrata servicios para su reserva `EN ESTANCIA`. **Contratar no carga nada a la cuenta.** Se crea una orden `PENDIENTE` (SERVICE_ORDER_STATUS) y el `CARGO` se registra recién cuando un **Cuidador** de la sede de la reserva la marca como completada. El saldo lo cobra el Recepcionista en mostrador. Los servicios ya no se pagan con tarjeta.
 
 1. **Catálogo**: `GET /services/booking/:bookingId` devuelve solo los servicios que se prestan en la **sede de la reserva** y que aplican a la especie de su tipo de habitación (`speciesType` igual o `null`). Usar esta ruta, no `/services`.
-2. **Cargar**: `POST /services/booking/:bookingId/charge` con
-   `{ serviceId, paymentMethod, petIds?, stripePaymentMethodId?, description? }`.
-   - `paymentMethod` (SERVICE_PAYMENT_OPTION):
-     - `TARJETA CREDITO/DEBITO`: se cobra al momento con Stripe. Se registran un `CARGO` y un `ABONO` (`payment`, con el PaymentIntent en `reference`), así que no genera saldo. En modo test, si no se envía `stripePaymentMethodId` se usa `pm_card_visa`. Si Stripe rechaza el cobro: 402 `PAYMENT_FAILED`.
-     - `CARGO A CUENTA`: se registra solo el `CARGO` (`methodPayment: null`) y `payment` es `null`. Sube el saldo, que el Recepcionista cobra en mostrador.
-   - Reglas: solo reservas `EN ESTANCIA`; el servicio debe prestarse en la sede de la reserva; las mascotas deben estar admitidas en el check-in. Monto = `rate × (isMultiGuest ? 1 : nº mascotas)`; sin `petIds` se cobra a todas las admitidas.
-   - Respuesta: `bill` (el cargo), `payment` (el abono con tarjeta o `null`) y `balance` (saldo pendiente de la reserva).
+2. **Contratar** (Cliente): `POST /service-orders/booking/:bookingId` con `{ serviceId, petIds?, description? }`.
+   - Reglas: solo reservas `EN ESTANCIA`; el servicio debe prestarse en la sede de la reserva; las mascotas deben estar admitidas en el check-in. Sin `petIds` se contrata para todas las admitidas. `description` son indicaciones para el Cuidador.
+   - Servicio **por mascota** (`isMultiGuest: false`): se crea **una orden por mascota**, cada una por `rate`. Servicio **grupal** (`isMultiGuest: true`): una sola orden con todas las mascotas, por `rate`.
+   - El `amount` de la orden es la tarifa vigente al contratar. Si después cambia la tarifa del catálogo, se carga igual lo que dice la orden.
+   - Respuesta: `serviceOrders` (las órdenes creadas). El `balance` de la reserva no cambia.
+3. **Cola del Cuidador**: `GET /service-orders?status=PENDIENTE` lista las órdenes de **la sede del empleado**, de la más antigua a la más reciente. El Administrador ve todas. Si el usuario no tiene perfil de empleado: 403.
+4. **Completar** (Cuidador): `PATCH /service-orders/:id/complete` con `{ resolutionNotes? }` (el informe). Registra el `CARGO` (`methodPayment: null`, `quantity: 1`) en la cuenta de la reserva y la orden queda `COMPLETADO` con su `bookingBillId`. Respuesta: `serviceOrder`, `bill` y `balance`. Si la orden ya no está `PENDIENTE`, la reserva no está `EN ESTANCIA` o el empleado es de otra sede: 409/403.
+5. **Cancelar**: `PATCH /service-orders/:id/cancel` con `{ resolutionNotes }` (motivo, mínimo 5 caracteres). Solo órdenes `PENDIENTE`. Puede hacerlo el Cliente dueño de la reserva o el personal de la sede (Cuidador o Recepcionista). No genera movimientos, porque la orden todavía no se había cargado.
+6. **Historial**: `GET /service-orders/booking/:bookingId`.
+
+`serviceOrder`: `{ id, bookingId, branchId, serviceId, service, status, amount, description, pets: [{ id, name }], requestedByUserId, resolvedByUserId, resolutionNotes, requestedAt, resolvedAt, bookingBillId }`.
 
 ### Reservas
 | Método | Ruta | Acceso | Clave |
@@ -373,6 +464,7 @@ El **Cliente** solicita la cancelación y un **Recepcionista de la sede de la re
 | POST | `/check-ins` | P: Hacer check-in de reservas | `checkIn` |
 | GET | `/check-ins` | P: Ver reservas del dia | `checkIns` |
 | GET | `/check-ins/booking/:bookingId/available-rooms` | P: Hacer check-in de reservas | `roomInventory` (habitaciones disponibles del tipo y sede de la reserva) |
+| GET | `/check-ins/booking/:bookingId/pets` | P: Hacer check-in de reservas | `pets` (mascotas de la reserva con su carnet de vacunación) |
 | GET | `/check-ins/booking/:bookingId` | P: Consultar cuenta de reservacion · propio | `checkIn` |
 | GET | `/check-ins/:id` | P: Consultar cuenta de reservacion · propio | `checkIn` |
 
@@ -384,6 +476,8 @@ Body: `{ bookingId, pets: [{ bookingPetId, admitted, nonadmissionReason? (obliga
 
 `checkIn`: `{ id, bookingId, roomInventoryId, roomNumber, checkInDate, observations, status, pets: [{ id, checkInId, bookingPetId, petId, admitted, nonadmissionReason }] }`.
 
+`pets` (de `/check-ins/booking/:bookingId/pets`): `[{ bookingPetId, pet: { ...mascota, vaccinationCard (URL firmada o null) }, vaccines: [{ id, petId, vaccineName, vaccineUse, dateOfPlacement }] }]`. Las vacunas vienen ordenadas de la más reciente a la más antigua. Usar `bookingPetId` en el body de `POST /check-ins`.
+
 ### Check-out
 | Método | Ruta | Acceso | Clave |
 |---|---|---|---|
@@ -393,13 +487,14 @@ Body: `{ bookingId, pets: [{ bookingPetId, admitted, nonadmissionReason? (obliga
 | GET | `/check-outs/:id` | P: Consultar cuenta de reservacion · propio | `checkOut` |
 
 Body: `{ checkInId, observations?, payment?: { methodPayment, reference?, description? } }`. Requiere reserva `EN ESTANCIA`.
+- Si la reserva tiene órdenes de servicio `PENDIENTE`: 409. Hay que completarlas o cancelarlas antes (`PATCH /service-orders/:id/complete` o `/cancel`).
 - Si `balance` es 0, el check-out procede sin pago.
 - Si hay saldo (servicios cargados a la cuenta), el Recepcionista lo cobra en el mismo paso enviando `payment`. `methodPayment` acepta cualquier método excepto `TARJETA CREDITO/DEBITO`. Se registra un `ABONO` por todo el saldo, en la misma transacción. Enviar `payment` requiere además el permiso "Aplicar pagos cobrados en mostrador".
 - Si hay saldo y no se envía `payment`: 409 con el monto pendiente. Alternativa: saldar antes con `PATCH /bookings/:id/confirm-payment`.
 
 Resultado: reserva `FINALIZADA`, habitación `LIMPIEZA Y DESINFECCION`.
 
-Flujo sugerido para la pantalla de check-out: `GET /bookings/:id` → mostrar `bill` y `balance` → si `balance > 0`, pedir el método de pago → `POST /check-outs` con `payment`.
+Flujo sugerido para la pantalla de check-out: `GET /service-orders/booking/:id` → resolver las `PENDIENTE` → `GET /bookings/:id` → mostrar `bill` y `balance` → si `balance > 0`, pedir el método de pago → `POST /check-outs` con `payment`.
 
 ### Empleados
 | Método | Ruta | Acceso | Clave |
@@ -409,9 +504,15 @@ Flujo sugerido para la pantalla de check-out: `GET /bookings/:id` → mostrar `b
 | GET | `/employees/:id` | propio perfil o P: Gestionar empleados | `employee` |
 | PUT / DELETE / restore | `/employees/:id` | P: Gestionar empleados | `employee` |
 | PATCH | `/employees/:id/assign-user` | P: Gestionar empleados | `employee` |
+| PATCH | `/employees/:id/revoke-user` | P: Gestionar empleados | `employee` |
+| PATCH | `/employees/:id/password` | P: Gestionar empleados | `employee` |
 | PUT / DELETE | `/employees/:id/profile-picture` | P: Gestionar empleados | `employee` |
 
 Body: `{ branchId, cityId, name, lastname, dpiNumber, addressLineOne, addressLineTwo?, phoneNumber }`. `assign-user`: `{ userId }`.
+- **`password`**: `{ password (8–72 caracteres) }`. Cambia la contraseña del usuario vinculado al empleado. No pide la contraseña actual, porque la restablece quien gestiona empleados.
+- **`revoke-user`**: sin body. Es lo inverso de `assign-user`: el perfil queda con `userId: null` y el usuario con `profileCompleted: false`. La cuenta **no se archiva**: puede asignarse de nuevo a este u otro empleado, o archivarse aparte con `DELETE /users/:uid`.
+- Las dos rutas **cierran las sesiones activas** del usuario, porque invalidan su refresh token. Su access token sigue siendo válido hasta que vence (15 min por defecto). Después, el refresh responde 401 y debe volver a iniciar sesión.
+- 409 si el empleado no tiene usuario asignado; 404 si el empleado no existe.
 
 ### Archivos (fotos y documentos)
 Se guardan en un bucket S3 privado. Los endpoints `PUT .../profile-picture` y `PUT .../vaccination-card` reciben
@@ -445,9 +546,9 @@ PENDIENTE / CONFIRMADA ──(Cliente: POST /booking-cancellations)──► sol
       ──(Recepcionista de la sede: PATCH .../approve)──► CANCELADA + reembolsos
       ──(Recepcionista de la sede: PATCH .../reject)───► la reserva sigue igual
 CONFIRMADA ──(POST /check-ins)──► EN ESTANCIA  (habitación OCUPADA)
-EN ESTANCIA ──(Cliente: POST /services/booking/:id/charge)
-                 ├─ TARJETA ────────► pagado con Stripe, el saldo no cambia
-                 └─ CARGO A CUENTA ─► saldo > 0
+EN ESTANCIA ──(Cliente: POST /service-orders/booking/:id)──► orden PENDIENTE (el saldo no cambia)
+      ──(Cuidador de la sede: PATCH /service-orders/:id/complete)──► COMPLETADO + CARGO (saldo > 0)
+      ──(Cliente / personal de la sede: PATCH /service-orders/:id/cancel)──► CANCELADO
             ──(Recepcionista: POST /check-outs { payment } si hay saldo)──► FINALIZADA (habitación LIMPIEZA Y DESINFECCION)
 Habitación: LIMPIEZA ──(PUT /room-inventory/:id { status: "DISPONIBLE" })──► DISPONIBLE
 ```
@@ -469,7 +570,7 @@ Habitación: LIMPIEZA ──(PUT /room-inventory/:id { status: "DISPONIBLE" })�
 | ROOM_STATUS | `DISPONIBLE`, `OCUPADA`, `MANTENIMIENTO/REPARACION`, `LIMPIEZA Y DESINFECCION`, `INACTIVA` |
 | BOOKING_STATUS | `RESERVA CONFIRMADA`, `RESERVA PENDIENTE DE CONFIRMAR`, `EN ESTANCIA`, `FINALIZADA`, `CANCELADA` |
 | PAYMENT_METHOD | `TARJETA CREDITO/DEBITO`, `POS`, `EFECTIVO`, `TRANSFERENCIA` |
-| SERVICE_PAYMENT_OPTION (cargo de servicios) | `TARJETA CREDITO/DEBITO`, `CARGO A CUENTA` |
+| SERVICE_ORDER_STATUS | `PENDIENTE`, `COMPLETADO`, `CANCELADO` |
 | MOVEMENT_TYPE | `CARGO`, `ABONO`, `REEMBOLSO` |
 | CHECK_IN_STATUS | `COMPLETADO`, `CANCELADO` |
 | CANCELLATION_STATUS | `PENDIENTE`, `APROBADA`, `RECHAZADA` |
@@ -488,7 +589,8 @@ NIT `^[0-9]{1,10}-?[0-9Kk]$`; montos en quetzales (GTQ) como número.
    dominios distintos, habrá que ajustarla o servir ambos bajo el mismo dominio.
 2. **Archivos huérfanos en S3**: el usuario IAM de prueba no tiene `s3:DeleteObject`, así
    que al reemplazar o quitar una foto el archivo viejo se queda en el bucket (la API no falla).
-3. **Reportes, informes, medicación y alimentación** tienen permisos creados
-   pero no tienen endpoints todavía.
+3. **Reportes de estado de mascota, medicación, limpieza y alimentación** tienen
+   permisos creados pero no tienen endpoints todavía. "Subir informes de servicios
+   completados" ya se usa en las órdenes de servicio (`/service-orders`).
 4. **Recepcionista no tiene "Gestionar reservaciones" ni "Gestionar
    mascotas"**: hoy no puede crear reservas ni registrar mascotas en mostrador.

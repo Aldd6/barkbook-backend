@@ -15,12 +15,9 @@ const create = async (createRoomBranchDTO) => {
     const roomTypeExists = await RoomType.findByPk(roomTypeId);
     if(!roomTypeExists) throw new ApiError(`El tipo de habitacion con el ID ${roomTypeId} no existe.`, "RESOURCE_NOT_FOUND");
 
-    // El indice unico (branch_id, room_type_id) incluye las archivadas, asi que se buscan tambien.
     const existing = await RoomBranch.findOne({ where: { branchId, roomTypeId }, paranoid: false });
     if(existing && !existing.isSoftDeleted()) throw new ApiError(`La sede con el ID ${branchId} ya tiene una configuracion para el tipo de habitacion con el ID ${roomTypeId}.`, "RESOURCE_CONFLICT");
 
-    // Si estaba archivada se restaura con el cupo nuevo. Archivar la configuracion no archiva sus
-    // habitaciones, asi que el cupo no puede quedar por debajo de las vigentes (igual que en update).
     if(existing) {
         const currentCount = await RoomInventory.count({ where: { roomBranchId: existing.id } });
         if(maximumQuantity < currentCount) {

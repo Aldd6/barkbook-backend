@@ -115,8 +115,6 @@ const getAllByCustomer = async (req, res, next) => {
     }
 };
 
-// Reservas PENDIENTE DE CONFIRMAR junto con el tiempo restante antes de que
-// el sistema las cancele automaticamente (plazo de 5 dias).
 const getPendingWithTimeRemaining = async (req, res, next) => {
     try {
         const pending = await bookingService.getPendingWithTimeRemaining();
@@ -135,8 +133,6 @@ const getPendingWithTimeRemaining = async (req, res, next) => {
     }
 };
 
-// Informa al personal de mostrador cuales reservas quedaron CANCELADA por no
-// haberse pagado dentro del plazo de 5 dias.
 const getAutoCancelledBookings = async (req, res, next) => {
     try {
         const cancelledBookings = await bookingService.getAutoCancelledBookings();

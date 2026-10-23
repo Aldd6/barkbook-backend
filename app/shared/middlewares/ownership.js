@@ -1,5 +1,5 @@
 const dbConnection = require('../utils/index.js');
-const { Customer, User, Employee, Pet, Booking, CheckIn, CheckOut, EmergencyContact } = dbConnection;
+const { Customer, User, Employee, Pet, Booking, CheckIn, CheckOut, EmergencyContact, ServiceOrder } = dbConnection;
 const { ApiError } = require('../utils/errors.js');
 const { assertPermission, assertKnownPermission } = require('./authorize.js');
 
@@ -7,7 +7,6 @@ const CUSTOMER_ROLE_NAME = 'Cliente';
 
 const isCustomerSession = (req) => req.user?.roleName === CUSTOMER_ROLE_NAME;
 
-// resolvers
 const findOwner = async (Model, id, getCustomerId) => {
     if(id === undefined || id === null) return undefined;
     const record = await Model.findByPk(id, { paranoid: false });
@@ -20,11 +19,9 @@ const byEmergencyContact = (getId) => async (req) => findOwner(EmergencyContact,
 const byBooking = (getId) => async (req) => findOwner(Booking, getId(req), booking => booking.customerId);
 const byCheckIn = (getId) => async (req) => findOwner(CheckIn, getId(req), checkIn => byBooking(() => checkIn.bookingId)(req));
 const byCheckOut = (getId) => async (req) => findOwner(CheckOut, getId(req), checkOut => byCheckIn(() => checkOut.checkInId)(req));
-// Registros de expediente de la mascota (PetDiet, PetSanity, PetVaccine).
+const byServiceOrder = (getId) => async (req) => findOwner(ServiceOrder, getId(req), order => byBooking(() => order.bookingId)(req));
 const byPetRecord = (Model, getId) => async (req) => findOwner(Model, getId(req), record => byPet(() => record.petId)(req));
 
-// Para una sesion de Cliente, exige que el recurso resuelto pertenezca a su
-// perfil de cliente.
 const ensureCustomerOwnership = (resolveCustomerId) => async (req, res, next) => {
     try {
         if(!isCustomerSession(req)) return next();
@@ -43,7 +40,6 @@ const ensureCustomerOwnership = (resolveCustomerId) => async (req, res, next) =>
     }
 };
 
-// garantiza que una sesion opere su propio usuario
 const ensureSelfUser = (getUid, permissionName) => {
     assertKnownPermission(permissionName);
     return async (req, res, next) => {
@@ -62,7 +58,6 @@ const ensureSelfUser = (getUid, permissionName) => {
     };
 };
 
-// garantiza que un empleado opere su propio perfil; el de otro requiere el permiso
 const ensureSelfEmployee = (getId, permissionName) => {
     assertKnownPermission(permissionName);
     return async (req, res, next) => {
@@ -78,7 +73,6 @@ const ensureSelfEmployee = (getId, permissionName) => {
     };
 };
 
-//Un cliente debe usar en su lugar los endpoints filtrados por su propio customerId.
 const denyCustomers = (req, res, next) => {
     if(isCustomerSession(req)) return next(new ApiError('No tiene permisos para realizar esta accion.', "UNAUTHORIZED_ACCESS"));
     next();
@@ -95,5 +89,7 @@ module.exports = {
     byBooking,
     byCheckIn,
     byCheckOut,
-    byPetRecord
+    byServiceOrder,
+    byPetRecord,
+    CUSTOMER_ROLE_NAME
 };

@@ -5,7 +5,6 @@ const BookingResponseDTO = require('./booking-response.js');
 const BookingCancellationResponseDTO = z.object({
     id: z.number(),
     bookingId: z.number(),
-    // Sede de la reserva (la que debe resolver la solicitud).
     branchId: z.number().nullable().optional(),
     reason: z.string(),
     status: z.enum(CANCELLATION_STATUS_ARRAY),

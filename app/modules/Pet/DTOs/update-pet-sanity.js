@@ -1,9 +1,6 @@
 const z = require('zod');
 const { todayISO } = require('../../../shared/utils/dates.js');
 
-// petId no es editable. La consistencia enduredUntil >= sufferedSince para un
-// update parcial se resuelve en el servicio (igual que nitOrCf/nitNumber en
-// Customer), porque depende del estado ya guardado del registro.
 const UpdatePetSanityDTO = z.object({
     illnessName: z.string().trim()
         .min(2, { message: "El nombre de la enfermedad debe tener al menos 2 caracteres." })
@@ -14,7 +11,6 @@ const UpdatePetSanityDTO = z.object({
     sufferedSince: z.iso.date({ message: "La fecha de inicio debe tener el formato YYYY-MM-DD." })
         .refine(val => val <= todayISO(), { message: "La fecha de inicio no puede ser en el futuro." })
         .optional(),
-    // Pasar null explicito reactiva la enfermedad (borra la fecha de fin).
     enduredUntil: z.iso.date({ message: "La fecha de finalizacion debe tener el formato YYYY-MM-DD." })
         .nullable()
         .optional()

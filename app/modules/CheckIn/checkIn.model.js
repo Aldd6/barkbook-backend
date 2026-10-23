@@ -19,8 +19,6 @@ module.exports = (sequelize, Sequelize) => {
             unique: true,
             field: 'booking_id'
         },
-        // Habitacion fisica asignada a la reserva al completar el check-in.
-        // Queda en null cuando el check-in se cancela.
         roomInventoryId: {
             type: Sequelize.INTEGER,
             references: {

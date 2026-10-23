@@ -11,7 +11,6 @@ const sequelizeOptions = {
         idle: config.pool.idle
     },
     define: {
-        //opciones globales de tablas
         freezeTableName: true,
         timestamps: true,
         paranoid: true,
@@ -36,7 +35,6 @@ const dbConnection = {};
 dbConnection.Sequelize = Sequelize;
 dbConnection.sequelize = sequelize;
 
-//agregar modelos aqui
 dbConnection.User = require('../../modules/Users/user.model.js')(sequelize, Sequelize);
 dbConnection.Role = require('../../modules/Roles/role.model.js')(sequelize, Sequelize);
 dbConnection.Permission = require('../../modules/Permissions/permission.model.js')(sequelize, Sequelize);
@@ -63,8 +61,9 @@ dbConnection.CheckInPet = require('../../modules/CheckIn/checkInPet.model.js')(s
 dbConnection.CheckOut = require('../../modules/CheckOut/CheckOut.model.js')(sequelize, Sequelize);
 dbConnection.Service = require('../../modules/Services/service.model.js')(sequelize, Sequelize);
 dbConnection.ServiceBranch = require('../../modules/Services/serviceBranch.model.js')(sequelize, Sequelize);
+dbConnection.ServiceOrder = require('../../modules/Services/serviceOrder.model.js')(sequelize, Sequelize);
+dbConnection.ServiceOrderPet = require('../../modules/Services/serviceOrderPet.model.js')(sequelize, Sequelize);
 
-//Ejecucion de asociaciones embebidas en los modelos
 Object.keys(dbConnection).forEach(model => {
     if(dbConnection[model].associate) {
         dbConnection[model].associate(dbConnection);

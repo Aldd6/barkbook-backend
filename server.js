@@ -11,7 +11,6 @@ db.sequelize.authenticate()
         const forceSync = false;
         db.sequelize.sync({force: forceSync}).then(async () => {
             console.log(`[DB] Sync con la base de datos: ${forceSync}`);
-            // Genera los roles y permisos base que falten (sin deshacer cambios del administrador).
             const { roleCount, permissionCount, renamedCount } = await seedAuth({ fullSync: false });
             console.log(`[SEED] Roles y permisos base: ${roleCount} rol(es) nuevo(s), ${permissionCount} permiso(s) nuevo(s), ${renamedCount} renombrado(s).`);
         }).catch((err) => {
@@ -27,6 +26,5 @@ db.sequelize.authenticate()
         process.exit(1);
     });
 
-// detiene el cron limpiamente para no dejar el proceso colgado al cerrar el servidor
 //process.on('SIGTERM', stopBookingCronJobs);
 //process.on('SIGINT', stopBookingCronJobs);

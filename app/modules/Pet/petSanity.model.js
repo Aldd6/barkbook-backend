@@ -43,10 +43,6 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: true,
             field: 'endured_until'
         },
-        // No es columna real: null en enduredUntil = enfermedad activa.
-        // Se deriva asi para que nunca quede desincronizado de enduredUntil,
-        // y paranoid se deja solo para su uso normal (borrar un registro
-        // capturado por error), no para representar "enfermedad resuelta".
         isIllnessActive: {
             type: Sequelize.VIRTUAL,
             get() {

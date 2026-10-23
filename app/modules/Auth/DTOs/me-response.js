@@ -12,10 +12,8 @@ const MeResponseDTO = z.object({
         roleName: z.string(),
         profileCompleted: z.boolean()
     }),
-    // null si el usuario aun no completa su perfil (o no es cliente/empleado).
     customer: CustomerResponseDTO.nullable(),
     employee: EmployeeResponseDTO.nullable(),
-    // permissionName de cada permiso del rol (el Administrador pasa todos los chequeos igual).
     permissions: z.array(z.string())
 });
 

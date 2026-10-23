@@ -23,7 +23,6 @@ const create = async (createPetDietDTO) => {
     return newDiet;
 }
 
-// unicamente: activeDiet se cambia solo por activateDiet/deactivateDiet.
 const update = async (id, updatePetDietDTO) => {
     const diet = await PetDiet.findByPk(id);
     if(!diet) throw new ApiError(`La dieta con el ID ${id} no existe.`, "RESOURCE_NOT_FOUND");
@@ -68,10 +67,6 @@ const getAllByPet = async (petId) => {
     return diets;
 }
 
-// Unica forma de activar una dieta: desactiva cualquier otra dieta activa de
-// la misma mascota y activa esta, todo en una transaccion. Es la garantia de
-// aplicacion de "una sola dieta activa por mascota"; el indice unico parcial
-// definido en petDiet.model.js es la garantia a nivel de base de datos.
 const activateDiet = async (id) => {
     const diet = await PetDiet.findByPk(id);
     if(!diet) throw new ApiError(`La dieta con el ID ${id} no existe.`, "RESOURCE_NOT_FOUND");

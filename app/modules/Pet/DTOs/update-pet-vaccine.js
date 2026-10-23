@@ -2,7 +2,6 @@ const z = require('zod');
 const { todayISO } = require('../../../shared/utils/dates.js');
 const { VACCINE_USE_ARRAY } = require('../../../shared/constants/enums.js');
 
-// petId no es editable: un registro de vacuna no se traspasa a otra mascota.
 const UpdatePetVaccineDTO = z.object({
     vaccineName: z.string().trim()
         .min(2, { message: "El nombre de la vacuna debe tener al menos 2 caracteres." })

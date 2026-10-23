@@ -15,9 +15,6 @@ module.exports = (sequelize, Sequelize) => {
             unique: true,
             field: 'name'
         },
-        // Prefijo usado para armar el numero de habitacion en RoomInventory
-        // (ej. "STD" + "001" = "STD001"). Unico para que dos tipos de
-        // habitacion no puedan generar codigos ambiguos entre si.
         prefix: {
             type: Sequelize.STRING(10),
             allowNull: false,

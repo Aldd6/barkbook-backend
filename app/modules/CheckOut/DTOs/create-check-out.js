@@ -6,8 +6,6 @@ const CreateCheckOutDTO = z.object({
     observations: z.string().trim()
         .max(255, { message: "Las observaciones no pueden exceder los 255 caracteres." })
         .optional(),
-    // Pago en mostrador del saldo pendiente (ej. servicios cargados a la cuenta
-    // durante la estancia). Se aplica en la misma transaccion del check-out.
     payment: ConfirmBookingPaymentDTO.optional()
 });
 

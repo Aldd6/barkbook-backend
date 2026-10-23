@@ -1,8 +1,6 @@
 const z = require('zod');
 const { SERVICE_TYPE_ARRAY, PET_SPECIES_ARRAY } = require('../../../shared/constants/enums.js');
 
-// Cambiar la tarifa no afecta los cargos ya registrados: cada BookingBill
-// guarda el monto calculado al momento de cargar el servicio.
 const UpdateServiceDTO = z.object({
     name: z.string().trim()
         .min(2, { message: "El nombre debe tener al menos 2 caracteres." })

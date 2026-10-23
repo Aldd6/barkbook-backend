@@ -1,6 +1,5 @@
 const z = require('zod');
 
-// Unica via de entrada para crear RoomInventory: bulk, nunca una habitacion
 const GenerateRoomInventoryDTO = z.object({
     branchId: z.number(),
     roomTypeId: z.number(),

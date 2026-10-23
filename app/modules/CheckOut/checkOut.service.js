@@ -4,9 +4,10 @@ const CheckIn = dbConnection.CheckIn;
 const Booking = dbConnection.Booking;
 const BookingBill = dbConnection.BookingBill;
 const RoomInventory = dbConnection.RoomInventory;
+const ServiceOrder = dbConnection.ServiceOrder;
 const sequelize = dbConnection.sequelize;
 const { ApiError } = require('../../shared/utils/errors.js');
-const { BOOKING_STATUS, CHECK_IN_STATUS, MOVEMENT_TYPE, ROOM_STATUS } = require('../../shared/constants/enums.js');
+const { BOOKING_STATUS, CHECK_IN_STATUS, MOVEMENT_TYPE, ROOM_STATUS, SERVICE_ORDER_STATUS } = require('../../shared/constants/enums.js');
 
 const roundMoney = (value) => Math.round(value * 100) / 100;
 
@@ -37,7 +38,15 @@ const create = async (createCheckOutDTO, userId) => {
             throw new ApiError(`Solo se puede hacer check-out de una reserva en estado "${BOOKING_STATUS.ENES}". Estado actual: "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
         }
 
-        // La cuenta debe estar saldada (incluye cargos agregados durante la estancia).
+        const pendingOrders = await ServiceOrder.findAll({
+            where: { bookingId: booking.id, status: SERVICE_ORDER_STATUS.PENDIENTE },
+            attributes: ['id'],
+            transaction
+        });
+        if(pendingOrders.length > 0) {
+            throw new ApiError(`La reserva #${booking.id} tiene ${pendingOrders.length} orden(es) de servicio pendiente(s) (#${pendingOrders.map(order => order.id).join(', #')}). Deben completarse o cancelarse antes de realizar el check-out.`, "RESOURCE_CONFLICT");
+        }
+
         const bills = await BookingBill.findAll({ where: { bookingId: booking.id }, transaction });
         const remaining = roundMoney(sumByMovement(bills, MOVEMENT_TYPE.CARGO) - sumByMovement(bills, MOVEMENT_TYPE.ABONO));
         if(remaining > 0) {
@@ -64,8 +73,6 @@ const create = async (createCheckOutDTO, userId) => {
             userId: userId ?? null
         }, { transaction });
 
-        // La habitacion no queda DISPONIBLE directamente: primero pasa por
-        // limpieza y desinfeccion.
         await room.update({ status: ROOM_STATUS.LMDS }, { transaction });
         await booking.update({ bookingStatus: BOOKING_STATUS.FNLZ }, { transaction });
 

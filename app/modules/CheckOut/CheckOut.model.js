@@ -1,6 +1,4 @@
 module.exports = (sequelize, Sequelize) => {
-    // Solo se relaciona con CheckIn: la reserva, la habitacion asignada y las
-    // mascotas admitidas ya quedan registradas en el check-in.
     const CheckOut = sequelize.define('CheckOut', {
         id: {
             type: Sequelize.INTEGER,
@@ -30,7 +28,6 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: true,
             field: 'observations'
         },
-        // Usuario (recepcionista) que realizo el check-out.
         userId: {
             type: Sequelize.INTEGER,
             references: {

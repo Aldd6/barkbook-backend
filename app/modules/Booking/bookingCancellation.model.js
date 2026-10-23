@@ -1,7 +1,5 @@
 const { CANCELLATION_STATUS_ARRAY, CANCELLATION_STATUS } = require('../../shared/constants/enums.js');
 
-// Solicitud de cancelacion de una reserva. Una reserva puede acumular varias
-// (p. ej. una rechazada y otra posterior), pero solo una PENDIENTE a la vez.
 module.exports = (sequelize, Sequelize) => {
     const BookingCancellation = sequelize.define('BookingCancellation', {
         id: {
@@ -40,7 +38,6 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: false,
             field: 'requested_by_user_id'
         },
-        // Usuario que aprobo o rechazo (Recepcionista de la sede o Administrador).
         resolvedByUserId: {
             type: Sequelize.INTEGER,
             references: {

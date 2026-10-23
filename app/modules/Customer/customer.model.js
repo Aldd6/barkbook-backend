@@ -48,7 +48,6 @@ module.exports = (sequelize, Sequelize) => {
             },
             field: 'dpi_number'
         },
-        // true = factura con NIT, false = factura como Consumidor Final (CF)
         nitOrCf: {
             type: Sequelize.BOOLEAN,
             allowNull: false,
@@ -95,7 +94,6 @@ module.exports = (sequelize, Sequelize) => {
     },
     {
         validate: {
-            // el nitNumber es obligatorio unicamente si nitOrCf es true.
             nitConsistency() {
                 if(this.nitOrCf && !this.nitNumber) {
                     throw new Error("El numero de NIT es obligatorio cuando el cliente factura con NIT.");

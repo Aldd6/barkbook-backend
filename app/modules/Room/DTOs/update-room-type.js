@@ -1,8 +1,6 @@
 const z = require('zod');
 const { PET_SPECIES_ARRAY } = require('../../../shared/constants/enums.js');
 
-// prefix no es editable: ya quedo embebido en el roomNumber de cada
-// RoomInventory generada con este tipo, cambiarlo despues las desincroniza.
 const UpdateRoomTypeDTO = z.object({
     name: z.string().trim()
         .min(2, { message: "El nombre debe tener al menos 2 caracteres." })

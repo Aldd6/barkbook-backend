@@ -17,8 +17,9 @@ router.put('/:id', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), regi
 router.delete('/:id', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), registerWorklog(EMPLOYEE_ENTITY_NAME), employeeController.remove);
 router.patch('/:id/restore', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), registerWorklog(EMPLOYEE_ENTITY_NAME), employeeController.restore);
 router.patch('/:id/assign-user', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), registerWorklog(EMPLOYEE_ENTITY_NAME), employeeController.assignUser);
+router.patch('/:id/revoke-user', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), registerWorklog(EMPLOYEE_ENTITY_NAME), employeeController.revokeUser);
+router.patch('/:id/password', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), registerWorklog(EMPLOYEE_ENTITY_NAME), employeeController.updatePassword);
 
-// multipart/form-data con el archivo en el campo "file"
 router.put('/:id/profile-picture', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), registerWorklog(EMPLOYEE_ENTITY_NAME), uploadImage, employeeController.updateProfilePicture);
 router.delete('/:id/profile-picture', verifyToken, authorize(PERMISSIONS.GESTIONAR_EMPLEADOS), registerWorklog(EMPLOYEE_ENTITY_NAME), employeeController.removeProfilePicture);
 

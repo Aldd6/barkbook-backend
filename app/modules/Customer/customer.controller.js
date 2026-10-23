@@ -24,14 +24,9 @@ const toResponseDTO = async (customer) => CustomerResponseDTO.parse({
 
 const create = async (req, res, next) => {
     try {
-        // el perfil de Customer solo lo completa el propio usuario autenticado: se ignora
-        // cualquier userId que venga en el body para que nadie pueda completar el perfil
-        // (y llevarse un token) de otra cuenta.
         const requestDTO = CreateCustomerDTO.parse({ ...req.body, userId: req.user.id });
         const newCustomer = await customerService.create(requestDTO);
 
-        // completar el perfil cambia lo que lleva el token (profileCompleted, name,
-        // lastname), asi que se reemite de una vez en lugar de esperar a que expire.
         const { accessToken, refreshToken } = await authService.reissueTokens(newCustomer.userId);
         setRefreshTokenCookie(res, refreshToken);
 

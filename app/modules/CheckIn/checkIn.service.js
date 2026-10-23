@@ -6,13 +6,14 @@ const BookingPet = dbConnection.BookingPet;
 const BookingBill = dbConnection.BookingBill;
 const BookingCancellation = dbConnection.BookingCancellation;
 const RoomInventory = dbConnection.RoomInventory;
+const Pet = dbConnection.Pet;
+const PetVaccine = dbConnection.PetVaccine;
 const sequelize = dbConnection.sequelize;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, CANCELLATION_STATUS, CHECK_IN_STATUS, MOVEMENT_TYPE, ROOM_STATUS } = require('../../shared/constants/enums.js');
 const { todayISO } = require('../../shared/utils/dates.js');
 const bookingService = require('../Booking/booking.service.js');
 
-// Solo las reservas que todavia no han iniciado su estancia pueden hacer check-in.
 const CHECK_IN_ALLOWED_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.CNFD];
 const PENDING_GRACE_PERIOD_DAYS = 5;
 
@@ -32,7 +33,6 @@ const withDetails = (checkIn) => CheckIn.findByPk(checkIn.id, {
 const create = async (createCheckInDTO) => {
     const { bookingId, pets, customerAcceptsPartialAdmission, roomNumber, observations } = createCheckInDTO;
 
-    // una reserva PENDIENTE fuera del plazo de pago ya no pueda hacer check-in (Barrida por rutina).
     await bookingService.sweepExpiredBookings();
 
     const newCheckIn = await sequelize.transaction(async (transaction) => {
@@ -49,7 +49,6 @@ const create = async (createCheckInDTO) => {
             throw new ApiError(`No se puede hacer check-in de una reserva en estado "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
         }
 
-        // Una solicitud de cancelacion pendiente debe resolverse antes de admitir a las mascotas.
         const pendingCancellation = await BookingCancellation.findOne({
             where: { bookingId, status: CANCELLATION_STATUS.PENDIENTE },
             transaction
@@ -63,7 +62,6 @@ const create = async (createCheckInDTO) => {
             throw new ApiError(`El check-in de esta reserva solo puede realizarse a partir del ${booking.checkInDate} y antes del ${booking.checkOutDate}.`, "INVALID_INPUT");
         }
 
-        // El detalle debe cubrir exactamente las mascotas de la reserva.
         const bookingPets = await BookingPet.findAll({ where: { bookingId }, transaction });
         const bookingPetIds = new Set(bookingPets.map(bookingPet => bookingPet.id));
         const unknownPets = pets.filter(pet => !bookingPetIds.has(pet.bookingPetId));
@@ -76,8 +74,6 @@ const create = async (createCheckInDTO) => {
 
         const admittedCount = pets.filter(pet => pet.admitted).length;
         const allAdmitted = admittedCount === pets.length;
-        // Valido si al menos una mascota es admitida y, cuando la admision es
-        // parcial, el cliente acepta dejar solo las mascotas admitidas.
         const isValid = admittedCount > 0 && (allAdmitted || customerAcceptsPartialAdmission === true);
 
         const checkInPetRows = (checkInId) => pets.map(pet => ({
@@ -101,15 +97,12 @@ const create = async (createCheckInDTO) => {
             }, { transaction });
             await CheckInPet.bulkCreate(checkInPetRows(checkIn.id), { transaction, validate: true });
 
-            // Al pasar a CANCELADA la reserva deja de contar para la disponibilidad
-            // de la RoomBranch, liberando el espacio reservado.
             await booking.update({ bookingStatus: BOOKING_STATUS.CNCL, cancellationReason }, { transaction });
             await bookingService.refundBookingPayments(booking, transaction, 'Reembolso por check-in cancelado');
 
             return checkIn;
         }
 
-        // Check-in valido: primero el pago debe estar completo.
         const bills = await BookingBill.findAll({ where: { bookingId }, transaction });
         const remaining = roundMoney(sumByMovement(bills, MOVEMENT_TYPE.CARGO) - sumByMovement(bills, MOVEMENT_TYPE.ABONO));
         if(booking.bookingStatus === BOOKING_STATUS.PDCN || remaining > 0) {
@@ -117,7 +110,6 @@ const create = async (createCheckInDTO) => {
             throw new ApiError(`La reserva #${bookingId} tiene un saldo pendiente de Q${remaining.toFixed(2)}. Registre el pago (PATCH /bookings/${bookingId}/confirm-payment) antes del ${expiresAt.toISOString()} y vuelva a realizar el check-in.`, "RESOURCE_CONFLICT");
         }
 
-        // Luego se asigna una habitacion fisica disponible del tipo reservado.
         if(!roomNumber) {
             throw new ApiError("Debe ingresar el numero de habitacion a asignar a la reserva.", "INVALID_INPUT");
         }
@@ -151,8 +143,6 @@ const create = async (createCheckInDTO) => {
     return withDetails(newCheckIn);
 }
 
-// Habitaciones fisicas disponibles del tipo y sede reservados, para que el
-// recepcionista elija una al completar el check-in.
 const getAvailableRoomsForBooking = async (bookingId) => {
     const booking = await Booking.findByPk(bookingId);
     if(!booking) throw new ApiError(`La reserva con el ID ${bookingId} no existe.`, "RESOURCE_NOT_FOUND");
@@ -164,6 +154,21 @@ const getAvailableRoomsForBooking = async (bookingId) => {
             active: true
         },
         order: [['roomNumber', 'ASC']]
+    });
+}
+
+const getPetsForBooking = async (bookingId) => {
+    const booking = await Booking.findByPk(bookingId);
+    if(!booking) throw new ApiError(`La reserva con el ID ${bookingId} no existe.`, "RESOURCE_NOT_FOUND");
+
+    return await BookingPet.findAll({
+        where: { bookingId },
+        include: [{
+            model: Pet,
+            paranoid: false,
+            include: [{ model: PetVaccine }]
+        }],
+        order: [['id', 'ASC'], [Pet, PetVaccine, 'dateOfPlacement', 'DESC']]
     });
 }
 
@@ -188,4 +193,4 @@ const getAll = async () => {
     });
 }
 
-module.exports = { create, getAvailableRoomsForBooking, getById, getByBooking, getAll };
+module.exports = { create, getAvailableRoomsForBooking, getPetsForBooking, getById, getByBooking, getAll };

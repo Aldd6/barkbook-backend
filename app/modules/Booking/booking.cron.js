@@ -1,13 +1,12 @@
 const cron = require('node-cron');
 const bookingService = require('./booking.service.js');
 
-// Cada 15 minutos.
 const CRON_EXPRESSION = '*/15 * * * *';
 
 let task = null;
 
 const startBookingCronJobs = () => {
-    if(task) return task; // ya esta corriendo, no registrar el job dos veces
+    if(task) return task;
 
     task = cron.schedule(CRON_EXPRESSION, async () => {
         try {
@@ -20,7 +19,7 @@ const startBookingCronJobs = () => {
         }
     }, {
         name: 'booking-expired-sweep',
-        noOverlap: true // si un barrido tarda mas de 15 min, no se solapa con el siguiente
+        noOverlap: true
     });
 
     console.log(`[CRON booking]: Barrido de reservas vencidas programado (${CRON_EXPRESSION}).`);
