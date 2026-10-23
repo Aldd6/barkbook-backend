@@ -3,16 +3,16 @@ const User = dbConfig.User;
 const Role = dbConfig.Role;
 const Customer = dbConfig.Customer;
 const Employee = dbConfig.Employee;
+const Permission = dbConfig.Permission;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Op = dbConfig.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { createClient } = require('redis');
 const authConfig = require('../../shared/config/auth.js');
-const defaultTTL = 1 * 24 * 60 * 60 * 1000; // en milisegundos
+const defaultTTL = 1 * 24 * 60 * 60 * 1000;
 const redisConfig = require('../../shared/config/redis.config.js');
 
-// cliente de redis compartido (singleton por proceso)
 let redisClient = null;
 const getRedisClient = async () => {
     if(!redisClient) {
@@ -31,7 +31,7 @@ const loadToRedis = async (key, value, TTL = defaultTTL) => {
     try {
         const client = await getRedisClient();
         await client.set(String(key), value, {
-            PX: TTL // TTL ya llega en milisegundos, PX evita la conversion a segundos que pedia EX
+            PX: TTL
         });
     } catch (err) {
         throw new ApiError(`Error al conectar con Redis: ${err.message}`, "REDIS_ERROR");
@@ -56,8 +56,6 @@ const deleteFromRedis = async (key) => {
     }
 }
 
-// punto de creacion de usuario para clientes (Customer) 
-// create en user.services es para creacion de usuarios operativos
 const signup = async (SignUpDTO) => {
     const { username, email, password } = SignUpDTO;
     const userExistsAlready = await User.findOne({
@@ -115,11 +113,9 @@ const buildTokenPayload = (user) => {
 const issueTokens = async (user) => {
     const tokenPayload = buildTokenPayload(user);
 
-    //token de acceso inical
     const accessToken = jwt.sign(tokenPayload, authConfig.accessSecret, {
         expiresIn: authConfig.accessExpiresIn
     });
-    //token de refresh para rotacion (almacenado en redis: id,token con TTL 7d)
     const refreshToken = jwt.sign(tokenPayload, authConfig.refreshSecret, {
         expiresIn: authConfig.refreshExpiresIn
     });
@@ -135,7 +131,6 @@ const signin = async (SignInDTO) => {
     if(username) conditions.push({ username });
     if(email) conditions.push({ email });
 
-    // unscoped: el defaultScope del modelo excluye hash_password, y aqui se necesita para comparar.
     const user = await User.unscoped().findOne({
         include: userWithProfileInclude,
         where: { [Op.or]: conditions }
@@ -177,8 +172,6 @@ const refresh = async (refreshToken) => {
     return issueTokens(user);
 }
 
-// invalida el refresh token en redis para que no pueda reutilizarse .
-// si el token ya no es valido (vencido, mal formado o no coincide con el guardado) no hay nada que invalidar.
 const signout = async (refreshToken) => {
     if(!refreshToken) return;
 
@@ -195,4 +188,20 @@ const signout = async (refreshToken) => {
     }
 }
 
-module.exports = { signup, signin, reissueTokens, refresh, signout };
+const me = async (userId) => {
+    const user = await User.findByPk(userId, {
+        include: [
+            { model: Customer, required: false },
+            { model: Employee, required: false },
+            { model: Role, include: [{ model: Permission, through: { attributes: [] }, required: false }] }
+        ]
+    });
+    if(!user) throw new ApiError('El usuario de la sesion ya no existe.', "UNAUTHENTICATED");
+    return user;
+}
+
+const revokeSessions = async (userId) => {
+    await deleteFromRedis(userId);
+}
+
+module.exports = { signup, signin, reissueTokens, refresh, signout, me, revokeSessions };

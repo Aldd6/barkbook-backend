@@ -48,6 +48,7 @@ module.exports = (sequelize, Sequelize) => {
 
     RoomInventory.associate = (models) => {
         RoomInventory.belongsTo(models.RoomBranch, { foreignKey: 'roomBranchId' });
+        RoomInventory.hasMany(models.CheckIn, { foreignKey: 'roomInventoryId' });
     }
 
     return RoomInventory;

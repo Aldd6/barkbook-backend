@@ -1,4 +1,5 @@
 const z = require('zod');
+const { todayISO } = require('../../../shared/utils/dates.js');
 const { PAYMENT_METHOD_ARRAY } = require('../../../shared/constants/enums.js');
 
 const CreateBookingDTO = z.object({
@@ -17,8 +18,7 @@ const CreateBookingDTO = z.object({
             message: "La fecha de check-out debe ser posterior a la fecha de check-in."
         });
     }
-    const today = new Date().toISOString().slice(0, 10);
-    if(data.checkInDate < today) {
+    if(data.checkInDate < todayISO()) {
         ctx.addIssue({
             code: "custom",
             path: ['checkInDate'],

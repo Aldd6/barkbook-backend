@@ -13,9 +13,13 @@ const app = express();
 
 
 
-// credentials:true es necesario porque el refresh token viaja en una cookie httpOnly
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 app.use(cors({
-    origin: 'http://localhost:4200',
+    origin: allowedOrigins,
     credentials: true,
     optionsSuccessStatus: 200
 }));
@@ -33,7 +37,6 @@ app.use((req, res) => {
     });
 });
 
-// captura los errores propagados con next(error)
 app.use(errorHandler);
 
 module.exports = app;

@@ -18,10 +18,7 @@ const CreateEmployeeDTO = z.object({
         .max(254, { message: "La direccion no puede exceder los 254 caracteres." })
         .optional(),
     phoneNumber: z.string().trim()
-        .regex(/^\+502\d{8}$/, { message: "El numero de telefono debe tener el formato +502 seguido de 8 digitos." }),
-    profilePicture: z.string().trim()
-        .max(500, { message: "La referencia de la imagen no puede exceder los 500 caracteres." })
-        .optional()
+        .regex(/^\+502\d{8}$/, { message: "El numero de telefono debe tener el formato +502 seguido de 8 digitos." })
 });
 
 module.exports = CreateEmployeeDTO;

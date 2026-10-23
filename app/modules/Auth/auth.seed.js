@@ -1,120 +1,153 @@
 require('dotenv').config({ path: `.env.${process.env.NODE_ENV || 'development'}` });
 const dbConnection = require('../../shared/utils/index.js');
 const { Role, Permission, sequelize } = dbConnection;
-const { TYPE_TRANSACTION } = require('../../shared/constants/enums.js');
+const { TYPE_TRANSACTION, PERMISSIONS } = require('../../shared/constants/enums.js');
 
-// Catalogo de permisos base del sistema. La clave es el mismo permissionName
-// (unico) usado luego en rolePermissions para asignarlo a cada rol, y el que
-// se pasa a los middlewares authorize('...') en cada *.routes.js.
 const permissionCatalog = [
-    // Roles y Permisos: modulo de administracion del propio RBAC, solo Administrador.
-    { permissionName: 'Gestionar roles y permisos', permissionType: TYPE_TRANSACTION.WRITE },
-    // Alta de cuentas y personal: solo Administrador.
-    { permissionName: 'Crear usuarios', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Crear perfiles de empleados', permissionType: TYPE_TRANSACTION.WRITE },
-    // Configuracion de sedes y catalogo de habitaciones: solo Administrador.
-    { permissionName: 'Crear sedes', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Crear tipos de habitacion', permissionType: TYPE_TRANSACTION.WRITE },
-    // Alta de habitaciones fisicas (RoomInventory) en una sede: Gerente.
-    { permissionName: 'Crear habitaciones fisicas', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Ver reservas del dia', permissionType: TYPE_TRANSACTION.READ },
-    // Check-in/check-out de reservas: funcionalidad aun no implementada en Booking, se deja el permiso listo.
-    { permissionName: 'Hacer check-in de reservas', permissionType: TYPE_TRANSACTION.UPDATE },
-    { permissionName: 'Hacer check-out de reservas', permissionType: TYPE_TRANSACTION.UPDATE },
-    { permissionName: 'Aplicar pagos cobrados en mostrador', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Gestionar contactos de emergencia', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Consultar cuenta de reservacion', permissionType: TYPE_TRANSACTION.READ },
-    { permissionName: 'Crear mascotas', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Crear reservaciones', permissionType: TYPE_TRANSACTION.WRITE },
-    // Cargar servicios a una reserva y ver reportes de estado: funcionalidad aun no implementada, se deja el permiso listo.
-    { permissionName: 'Cargar servicios a reservacion', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Ver reportes de estado de mascota', permissionType: TYPE_TRANSACTION.READ },
-    // Subir reportes de estado, informes de servicios y aplicar medicacion: funcionalidad aun no implementada, se deja el permiso listo.
-    { permissionName: 'Subir reportes de estado de mascota', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Subir informes de servicios completados', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Aplicar medicacion requerida a mascotas', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Subir informes de limpieza de habitaculos', permissionType: TYPE_TRANSACTION.WRITE },
-    { permissionName: 'Aplicar alimentacion a mascotas', permissionType: TYPE_TRANSACTION.WRITE }
+    { permissionName: PERMISSIONS.GESTIONAR_ROLES_PERMISOS, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_USUARIOS, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_EMPLEADOS, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_SEDES, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_TIPOS_HABITACION, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_HABITACIONES_SEDE, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_CATALOGO_SERVICIOS, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_HABITACIONES_FISICAS, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.ACTUALIZAR_ESTADO_HABITACIONES, permissionType: TYPE_TRANSACTION.UPDATE },
+    { permissionName: PERMISSIONS.GESTIONAR_MASCOTAS, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_CONTACTOS_EMERGENCIA, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_RESERVACIONES, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.VER_RESERVAS_DIA, permissionType: TYPE_TRANSACTION.READ },
+    { permissionName: PERMISSIONS.CONSULTAR_CUENTA_RESERVACION, permissionType: TYPE_TRANSACTION.READ },
+    { permissionName: PERMISSIONS.HACER_CHECK_IN, permissionType: TYPE_TRANSACTION.UPDATE },
+    { permissionName: PERMISSIONS.HACER_CHECK_OUT, permissionType: TYPE_TRANSACTION.UPDATE },
+    { permissionName: PERMISSIONS.APLICAR_PAGOS_MOSTRADOR, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.CARGAR_SERVICIOS_RESERVACION, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.SOLICITAR_CANCELACION_RESERVACION, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.GESTIONAR_CANCELACIONES_RESERVACION, permissionType: TYPE_TRANSACTION.UPDATE },
+    { permissionName: PERMISSIONS.VER_REPORTES_ESTADO_MASCOTA, permissionType: TYPE_TRANSACTION.READ },
+    { permissionName: PERMISSIONS.SUBIR_REPORTES_ESTADO_MASCOTA, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.SUBIR_INFORMES_SERVICIOS, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.APLICAR_MEDICACION, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.SUBIR_INFORMES_LIMPIEZA, permissionType: TYPE_TRANSACTION.WRITE },
+    { permissionName: PERMISSIONS.APLICAR_ALIMENTACION, permissionType: TYPE_TRANSACTION.WRITE }
 ];
 
-// Roles por defecto y los permisos que le corresponden a cada uno (por permissionName).
-// Administrador se resuelve aparte: siempre recibe el catalogo completo (ademas,
-// authorize() lo deja pasar cualquier chequeo sin siquiera consultar esta tabla).
+const legacyPermissionNames = {
+    'Crear usuarios': PERMISSIONS.GESTIONAR_USUARIOS,
+    'Crear perfiles de empleados': PERMISSIONS.GESTIONAR_EMPLEADOS,
+    'Crear sedes': PERMISSIONS.GESTIONAR_SEDES,
+    'Crear tipos de habitacion': PERMISSIONS.GESTIONAR_TIPOS_HABITACION,
+    'Crear habitaciones fisicas': PERMISSIONS.GESTIONAR_HABITACIONES_FISICAS,
+    'Crear mascotas': PERMISSIONS.GESTIONAR_MASCOTAS,
+    'Crear reservaciones': PERMISSIONS.GESTIONAR_RESERVACIONES
+};
+
 const rolePermissions = {
-    'Administrador': null, // null = todos los permisos del catalogo
+    'Administrador': null,
     'Gerente': [
-        'Ver reservas del dia',
-        'Crear habitaciones fisicas'
+        PERMISSIONS.VER_RESERVAS_DIA,
+        PERMISSIONS.GESTIONAR_HABITACIONES_FISICAS,
+        PERMISSIONS.ACTUALIZAR_ESTADO_HABITACIONES
     ],
     'Recepcionista': [
-        'Ver reservas del dia',
-        'Hacer check-in de reservas',
-        'Hacer check-out de reservas',
-        'Aplicar pagos cobrados en mostrador',
-        'Gestionar contactos de emergencia',
-        'Consultar cuenta de reservacion'
+        PERMISSIONS.VER_RESERVAS_DIA,
+        PERMISSIONS.HACER_CHECK_IN,
+        PERMISSIONS.HACER_CHECK_OUT,
+        PERMISSIONS.APLICAR_PAGOS_MOSTRADOR,
+        PERMISSIONS.GESTIONAR_CONTACTOS_EMERGENCIA,
+        PERMISSIONS.CONSULTAR_CUENTA_RESERVACION,
+        PERMISSIONS.ACTUALIZAR_ESTADO_HABITACIONES,
+        PERMISSIONS.GESTIONAR_CANCELACIONES_RESERVACION
     ],
     'Cuidador': [
-        'Subir reportes de estado de mascota',
-        'Subir informes de servicios completados',
-        'Aplicar medicacion requerida a mascotas'
+        PERMISSIONS.SUBIR_REPORTES_ESTADO_MASCOTA,
+        PERMISSIONS.SUBIR_INFORMES_SERVICIOS,
+        PERMISSIONS.APLICAR_MEDICACION
     ],
     'Operador': [
-        'Subir informes de limpieza de habitaculos',
-        'Aplicar alimentacion a mascotas'
+        PERMISSIONS.SUBIR_INFORMES_LIMPIEZA,
+        PERMISSIONS.APLICAR_ALIMENTACION,
+        PERMISSIONS.ACTUALIZAR_ESTADO_HABITACIONES
     ],
-    // Rol usado por Auth.signup para clientes finales.
     'Cliente': [
-        'Gestionar contactos de emergencia',
-        'Consultar cuenta de reservacion',
-        'Crear mascotas',
-        'Crear reservaciones',
-        'Cargar servicios a reservacion',
-        'Ver reportes de estado de mascota'
+        PERMISSIONS.GESTIONAR_CONTACTOS_EMERGENCIA,
+        PERMISSIONS.CONSULTAR_CUENTA_RESERVACION,
+        PERMISSIONS.GESTIONAR_MASCOTAS,
+        PERMISSIONS.GESTIONAR_RESERVACIONES,
+        PERMISSIONS.CARGAR_SERVICIOS_RESERVACION,
+        PERMISSIONS.VER_REPORTES_ESTADO_MASCOTA,
+        PERMISSIONS.SOLICITAR_CANCELACION_RESERVACION
     ]
 };
 
-const seed = async () => {
-    const transaction = await sequelize.transaction();
-    try {
-        let roleCount = 0;
-        let permissionCount = 0;
+const renameLegacyPermissions = async (transaction) => {
+    let renamed = 0;
+    for(const [legacyName, currentName] of Object.entries(legacyPermissionNames)) {
+        const legacy = await Permission.findOne({ where: { permissionName: legacyName }, paranoid: false, transaction });
+        if(!legacy) continue;
 
+        const current = await Permission.findOne({ where: { permissionName: currentName }, paranoid: false, transaction });
+        if(current) {
+            console.warn(`[SEED] Existen "${legacyName}" y "${currentName}" a la vez; no se renombra. Reasigne y archive "${legacyName}" manualmente.`);
+            continue;
+        }
+        await legacy.update({ permissionName: currentName }, { transaction });
+        renamed++;
+    }
+    return renamed;
+}
+
+const findOrCreateActive = async (Model, where, defaults, fullSync, transaction) => {
+    const existing = await Model.findOne({ where, paranoid: false, transaction });
+    if(!existing) return { record: await Model.create(defaults, { transaction }), created: true };
+    if(existing.isSoftDeleted()) {
+        if(!fullSync) return { record: null, created: false };
+        await existing.restore({ transaction });
+    }
+    return { record: existing, created: false };
+}
+
+const seedAuth = async ({ fullSync = true } = {}) => {
+    return await sequelize.transaction(async (transaction) => {
+        const renamedCount = await renameLegacyPermissions(transaction);
+
+        let permissionCount = 0;
         const permissionsByName = {};
+        const newPermissionNames = new Set();
         for(const permissionDef of permissionCatalog) {
-            const [permission, created] = await Permission.findOrCreate({
-                where: { permissionName: permissionDef.permissionName },
-                defaults: permissionDef,
-                transaction
-            });
-            if(created) permissionCount++;
-            permissionsByName[permissionDef.permissionName] = permission;
+            const { record, created } = await findOrCreateActive(Permission, { permissionName: permissionDef.permissionName }, permissionDef, fullSync, transaction);
+            if(!record) continue;
+            if(created) {
+                permissionCount++;
+                newPermissionNames.add(permissionDef.permissionName);
+            }
+            permissionsByName[permissionDef.permissionName] = record;
         }
 
-        const allPermissionIds = Object.values(permissionsByName).map(permission => permission.id);
-
-        for(const roleName of Object.keys(rolePermissions)) {
-            const [role, created] = await Role.findOrCreate({
-                where: { roleName },
-                transaction
-            });
+        let roleCount = 0;
+        for(const [roleName, defaultNames] of Object.entries(rolePermissions)) {
+            const { record: role, created } = await findOrCreateActive(Role, { roleName }, { roleName }, fullSync, transaction);
+            if(!role) continue;
             if(created) roleCount++;
 
-            const permissionNames = rolePermissions[roleName];
-            const permissionIds = permissionNames === null
-                ? allPermissionIds
-                : permissionNames.map(name => permissionsByName[name].id);
-
-            // setPermissions sincroniza el rol exactamente a esta lista (agrega lo
-            // que falte y quita lo que ya no deberia tener), para que el seed sea
-            // la fuente de verdad de los roles por defecto.
-            await role.setPermissions(permissionIds, { transaction });
+            const names = (defaultNames ?? Object.keys(permissionsByName)).filter(name => permissionsByName[name]);
+            if(fullSync) {
+                await role.setPermissions(names.map(name => permissionsByName[name].id), { transaction });
+            } else {
+                const toAdd = created ? names : names.filter(name => newPermissionNames.has(name));
+                if(toAdd.length > 0) await role.addPermissions(toAdd.map(name => permissionsByName[name].id), { transaction });
+            }
         }
 
-        await transaction.commit();
-        console.log(`Seed completado: ${roleCount} rol(es) nuevo(s), ${permissionCount} permiso(s) nuevo(s) insertados.`);
+        return { roleCount, permissionCount, renamedCount };
+    });
+};
+
+const run = async () => {
+    try {
+        const { roleCount, permissionCount, renamedCount } = await seedAuth({ fullSync: true });
+        console.log(`Seed completado: ${roleCount} rol(es) nuevo(s), ${permissionCount} permiso(s) nuevo(s), ${renamedCount} permiso(s) renombrado(s).`);
     } catch(err) {
-        await transaction.rollback();
         console.error(`Error al ejecutar el seed de Auth: ${err.message}`);
         process.exitCode = 1;
     } finally {
@@ -122,4 +155,6 @@ const seed = async () => {
     }
 };
 
-seed();
+if(require.main === module) run();
+
+module.exports = { seedAuth };

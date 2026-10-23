@@ -13,7 +13,8 @@ const BookingResponseDTO = z.object({
     nightlyRate: z.coerce.number(),
     cancellationReason: z.string().nullable().optional(),
     pets: z.array(BookingPetResponseDTO).optional(),
-    bill: z.array(BookingBillResponseDTO).optional()
+    bill: z.array(BookingBillResponseDTO).optional(),
+    balance: z.number().optional()
 });
 
 module.exports = BookingResponseDTO;

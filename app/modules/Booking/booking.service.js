@@ -5,20 +5,51 @@ const BookingBill = dbConnection.BookingBill;
 const RoomBranch = dbConnection.RoomBranch;
 const RoomType = dbConnection.RoomType;
 const Customer = dbConnection.Customer;
+const User = dbConnection.User;
 const Pet = dbConnection.Pet;
 const sequelize = dbConnection.sequelize;
 const Op = dbConnection.Sequelize.Op;
 const { ApiError } = require('../../shared/utils/errors.js');
 const { BOOKING_STATUS, MOVEMENT_TYPE, PAYMENT_METHOD } = require('../../shared/constants/enums.js');
-const { getStripeClient } = require('../../shared/config/stripe.js');
+const { chargeCard, toStripeCustomer, getStripeClient } = require('../../shared/config/stripe.js');
 
-// Estados que todavia "ocupan" un cupo de la RoomBranch para efectos de
-// disponibilidad. FINALIZADA y CANCELADA liberan el cupo.
 const ACTIVE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.CNFD, BOOKING_STATUS.ENES];
 const PENDING_GRACE_PERIOD_DAYS = 5;
-// Token de prueba publico de Stripe para un pago con tarjeta exitoso en modo
-// test. Ver DTOs/create-booking.js para el contexto de por que existe.
-const DEFAULT_TEST_PAYMENT_METHOD = 'pm_card_visa';
+const PAYABLE_STATUSES = [BOOKING_STATUS.PDCN, BOOKING_STATUS.ENES];
+
+const sumByMovement = (bills, movementType) => bills
+    .filter(bill => bill.movementType === movementType)
+    .reduce((sum, bill) => sum + parseFloat(bill.amount), 0);
+
+const refundBookingPayments = async (booking, transaction, label) => {
+    const bills = await BookingBill.findAll({ where: { bookingId: booking.id }, transaction });
+    const alreadyRefunded = sumByMovement(bills, MOVEMENT_TYPE.REEMBOLSO);
+    if(alreadyRefunded > 0) return [];
+
+    const payments = bills.filter(bill => bill.movementType === MOVEMENT_TYPE.ABONO);
+    const refunds = [];
+    for(const payment of payments) {
+        let reference = payment.reference;
+        if(payment.methodPayment === PAYMENT_METHOD.TARJETA && payment.reference) {
+            try {
+                const stripeRefund = await getStripeClient().refunds.create({ payment_intent: payment.reference });
+                reference = stripeRefund.id;
+            } catch(err) {
+                throw new ApiError(`No se pudo procesar el reembolso en Stripe: ${err.message}`, "PAYMENT_FAILED");
+            }
+        }
+
+        refunds.push(await BookingBill.create({
+            bookingId: booking.id,
+            movementType: MOVEMENT_TYPE.REEMBOLSO,
+            amount: payment.amount,
+            methodPayment: payment.methodPayment,
+            reference,
+            description: `${label} (${payment.methodPayment}) - Reserva #${booking.id}.`
+        }, { transaction }));
+    }
+    return refunds;
+}
 
 const nightsBetween = (checkInDate, checkOutDate) => {
     const msPerDay = 24 * 60 * 60 * 1000;
@@ -37,8 +68,6 @@ const create = async (createBookingDTO) => {
     const uniquePetIds = [...new Set(petIds)];
 
     const newBooking = await sequelize.transaction(async (transaction) => {
-        // Bloquea la RoomBranch: dos reservas concurrentes para la misma
-        // sede+tipo no pueden pasar ambas la validacion de disponibilidad.
         const roomBranch = await RoomBranch.findByPk(branchRoomId, {
             transaction,
             lock: transaction.LOCK.UPDATE
@@ -48,7 +77,10 @@ const create = async (createBookingDTO) => {
         const roomType = await RoomType.findByPk(roomBranch.roomTypeId, { transaction });
         if(!roomType) throw new ApiError(`El tipo de habitacion con el ID ${roomBranch.roomTypeId} no existe.`, "RESOURCE_NOT_FOUND");
 
-        const customer = await Customer.findByPk(customerId, { transaction });
+        const customer = await Customer.findByPk(customerId, {
+            include: [{ model: User, attributes: ['email'] }],
+            transaction
+        });
         if(!customer) throw new ApiError(`El cliente con el ID ${customerId} no existe.`, "RESOURCE_NOT_FOUND");
 
         const pets = await Pet.findAll({
@@ -65,7 +97,6 @@ const create = async (createBookingDTO) => {
             throw new ApiError(`Todas las mascotas de la reserva deben ser de la especie admitida por este tipo de habitacion (${roomType.speciesType}).`, "INVALID_INPUT");
         }
 
-        // Una mascota no puede tener dos reservas activas (PDCN/CNFD/ENES) cuyo rango de fechas se traslape, sin importar la sede/habitacion.
         const overlappingPetBookings = await BookingPet.findAll({
             where: { petId: { [Op.in]: uniquePetIds } },
             include: [{
@@ -88,7 +119,6 @@ const create = async (createBookingDTO) => {
             throw new ApiError(`La(s) siguiente(s) mascota(s) ya tienen una reserva activa que se traslapa con las fechas solicitadas: ${conflictingPetNames}.`, "RESOURCE_CONFLICT");
         }
 
-        // Disponibilidad: cuenta reservas activas de esta misma RoomBranch cuyo rango de fechas se traslape con el solicitado.
         const overlappingCount = await Booking.count({
             where: {
                 branchRoomId,
@@ -110,27 +140,13 @@ const create = async (createBookingDTO) => {
         let stripePaymentIntentId = null;
 
         if(paymentMethod === PAYMENT_METHOD.TARJETA) {
-            const stripeClient = getStripeClient();
-            let paymentIntent;
-            try {
-                paymentIntent = await stripeClient.paymentIntents.create({
-                    amount: Math.round(totalAmount * 100),
-                    currency: 'gtq',
-                    payment_method: stripePaymentMethodId || DEFAULT_TEST_PAYMENT_METHOD,
-                    payment_method_types: ['card'],
-                    confirm: true,
-                    off_session: true,
-                    error_on_requires_action: true,
-                    description: `Reserva BarkBook - Cliente #${customerId}`
-                });
-            } catch(err) {
-                throw new ApiError(`El pago con Stripe fue rechazado: ${err.message}`, "PAYMENT_FAILED");
-            }
-            if(paymentIntent.status !== 'succeeded') {
-                throw new ApiError(`El pago con Stripe no se pudo completar (estado: ${paymentIntent.status}).`, "PAYMENT_FAILED");
-            }
+            stripePaymentIntentId = await chargeCard({
+                amount: totalAmount,
+                paymentMethodId: stripePaymentMethodId,
+                description: `Reserva BarkBook - Cliente #${customerId}`,
+                customer: toStripeCustomer(customer)
+            });
             bookingStatus = BOOKING_STATUS.CNFD;
-            stripePaymentIntentId = paymentIntent.id;
         }
 
         const booking = await Booking.create({
@@ -179,8 +195,8 @@ const confirmPayment = async (id, confirmBookingPaymentDTO) => {
     const updatedBooking = await sequelize.transaction(async (transaction) => {
         const booking = await Booking.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
         if(!booking) throw new ApiError(`La reserva con el ID ${id} no existe.`, "RESOURCE_NOT_FOUND");
-        if(booking.bookingStatus !== BOOKING_STATUS.PDCN) {
-            throw new ApiError(`Solo se puede confirmar el pago de una reserva en estado "${BOOKING_STATUS.PDCN}". Estado actual: "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
+        if(!PAYABLE_STATUSES.includes(booking.bookingStatus)) {
+            throw new ApiError(`Solo se puede confirmar el pago de una reserva en estado "${BOOKING_STATUS.PDCN}" o "${BOOKING_STATUS.ENES}". Estado actual: "${booking.bookingStatus}".`, "RESOURCE_CONFLICT");
         }
 
         const bills = await BookingBill.findAll({ where: { bookingId: id }, transaction });
@@ -203,7 +219,9 @@ const confirmPayment = async (id, confirmBookingPaymentDTO) => {
             description: description || `Pago confirmado por el personal del hotel (${methodPayment}) - Reserva #${id}.`
         }, { transaction });
 
-        await booking.update({ bookingStatus: BOOKING_STATUS.CNFD }, { transaction });
+        if(booking.bookingStatus === BOOKING_STATUS.PDCN) {
+            await booking.update({ bookingStatus: BOOKING_STATUS.CNFD }, { transaction });
+        }
         return booking;
     });
 
@@ -216,7 +234,7 @@ const sweepExpiredBookings = async () => {
     const expiredBookings = await Booking.findAll({
         where: {
             bookingStatus: BOOKING_STATUS.PDCN,
-            createdAt: { [Op.lte]: cutoff }
+            creadoEn: { [Op.lte]: cutoff }
         }
     });
 
@@ -240,7 +258,7 @@ const getPendingWithTimeRemaining = async () => {
 
     const now = Date.now();
     return pendingBookings.map(booking => {
-        const expiresAt = new Date(booking.createdAt.getTime() + PENDING_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(booking.creadoEn.getTime() + PENDING_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
         return {
             booking,
             expiresAt,
@@ -281,4 +299,4 @@ const getAllByCustomer = async (customerId) => {
     });
 }
 
-module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings, sweepExpiredBookings };
+module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings, sweepExpiredBookings, refundBookingPayments, ACTIVE_STATUSES };

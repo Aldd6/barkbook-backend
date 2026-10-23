@@ -1,4 +1,4 @@
-const { MOVEMENT_TYPE_ARRAY, PAYMENT_METHOD_ARRAY } = require('../../shared/constants/enums.js');
+const { MOVEMENT_TYPE, MOVEMENT_TYPE_ARRAY, PAYMENT_METHOD_ARRAY } = require('../../shared/constants/enums.js');
 
 module.exports = (sequelize, Sequelize) => {
     const BookingBill = sequelize.define('BookingBill', {
@@ -18,6 +18,26 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: false,
             field: 'booking_id'
         },
+        serviceId: {
+            type: Sequelize.INTEGER,
+            references: {
+                model: 'Service',
+                key: 'id_service'
+            },
+            allowNull: true,
+            field: 'service_id'
+        },
+        quantity: {
+            type: Sequelize.INTEGER,
+            allowNull: true,
+            validate: {
+                min: {
+                    args: [1],
+                    msg: "La cantidad debe ser al menos 1."
+                }
+            },
+            field: 'quantity'
+        },
         movementType: {
             type: Sequelize.ENUM(...MOVEMENT_TYPE_ARRAY),
             allowNull: false,
@@ -36,11 +56,9 @@ module.exports = (sequelize, Sequelize) => {
         },
         methodPayment: {
             type: Sequelize.ENUM(...PAYMENT_METHOD_ARRAY),
-            allowNull: false,
+            allowNull: true,
             field: 'method_payment'
         },
-        // Ej. id de PaymentIntent de Stripe, numero de voucher de POS, o de
-        // transferencia bancaria. No aplica siempre (ej. EFECTIVO).
         reference: {
             type: Sequelize.STRING(150),
             allowNull: true,
@@ -55,11 +73,29 @@ module.exports = (sequelize, Sequelize) => {
     {
         timestamps: true,
         updatedAt: false,
-        paranoid: false
+        paranoid: false,
+        validate: {
+            serviceOnlyOnCharge() {
+                if(this.serviceId != null && this.movementType !== MOVEMENT_TYPE.CARGO) {
+                    throw new Error(`Solo un movimiento de tipo "${MOVEMENT_TYPE.CARGO}" puede estar asociado a un servicio.`);
+                }
+            },
+            quantityOnlyWithService() {
+                if((this.serviceId == null) !== (this.quantity == null)) {
+                    throw new Error("La cantidad solo aplica, y es obligatoria, en cargos asociados a un servicio.");
+                }
+            },
+            paymentMethodRequiredOnPayments() {
+                if(this.movementType !== MOVEMENT_TYPE.CARGO && this.methodPayment == null) {
+                    throw new Error(`El metodo de pago es obligatorio en movimientos de tipo "${this.movementType}".`);
+                }
+            }
+        }
     });
 
     BookingBill.associate = (models) => {
         BookingBill.belongsTo(models.Booking, { foreignKey: 'bookingId' });
+        BookingBill.belongsTo(models.Service, { foreignKey: 'serviceId' });
     }
 
     return BookingBill;

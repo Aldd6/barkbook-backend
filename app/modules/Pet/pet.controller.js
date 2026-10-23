@@ -2,8 +2,9 @@ const petService = require('./pet.service.js');
 const CreatePetDTO = require('./DTOs/create-pet.js');
 const UpdatePetDTO = require('./DTOs/update-pet.js');
 const PetResponseDTO = require('./DTOs/pet-response.js');
+const { getFileUrl } = require('../../shared/config/s3.js');
 
-const toResponseDTO = (pet) => PetResponseDTO.parse({
+const toResponseDTO = async (pet) => PetResponseDTO.parse({
     id: pet.id,
     customerId: pet.customerId,
     name: pet.name,
@@ -15,8 +16,8 @@ const toResponseDTO = (pet) => PetResponseDTO.parse({
     unitOfMeasureWeight: pet.unitOfMeasureWeight,
     sociabilityLevel: pet.sociabilityLevel,
     isNeutered: pet.isNeutered,
-    vaccinationCard: pet.vaccinationCard,
-    profilePicture: pet.profilePicture
+    vaccinationCard: await getFileUrl(pet.vaccinationCard),
+    profilePicture: await getFileUrl(pet.profilePicture)
 });
 
 const create = async (req, res, next) => {
@@ -27,7 +28,7 @@ const create = async (req, res, next) => {
             success: true,
             status: 201,
             message: "Mascota creada exitosamente.",
-            pet: toResponseDTO(newPet)
+            pet: await toResponseDTO(newPet)
         });
     } catch(error) {
         next(error);
@@ -43,7 +44,7 @@ const update = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Mascota actualizada exitosamente.",
-            pet: toResponseDTO(updatedPet)
+            pet: await toResponseDTO(updatedPet)
         });
     } catch(error) {
         next(error);
@@ -58,7 +59,7 @@ const remove = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Mascota eliminada exitosamente.",
-            pet: toResponseDTO(removedPet)
+            pet: await toResponseDTO(removedPet)
         });
     } catch(error) {
         next(error);
@@ -73,7 +74,7 @@ const restore = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Mascota restaurada exitosamente.",
-            pet: toResponseDTO(restoredPet)
+            pet: await toResponseDTO(restoredPet)
         });
     } catch(error) {
         next(error);
@@ -88,7 +89,7 @@ const getById = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Mascota encontrada exitosamente.",
-            pet: toResponseDTO(pet)
+            pet: await toResponseDTO(pet)
         });
     } catch(error) {
         next(error);
@@ -102,7 +103,7 @@ const getAll = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Mascotas obtenidas exitosamente.",
-            pets: pets.map(toResponseDTO)
+            pets: await Promise.all(pets.map(toResponseDTO))
         });
     } catch(error) {
         next(error);
@@ -117,11 +118,71 @@ const getAllByCustomer = async (req, res, next) => {
             success: true,
             status: 200,
             message: "Mascotas del cliente obtenidas exitosamente.",
-            pets: pets.map(toResponseDTO)
+            pets: await Promise.all(pets.map(toResponseDTO))
         });
     } catch(error) {
         next(error);
     }
 };
 
-module.exports = { create, update, remove, restore, getById, getAll, getAllByCustomer };
+const updateProfilePicture = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await petService.updateProfilePicture(id, req.file);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Foto de perfil de la mascota actualizada exitosamente.",
+            pet: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+const removeProfilePicture = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await petService.removeProfilePicture(id);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Foto de perfil de la mascota eliminada exitosamente.",
+            pet: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+const updateVaccinationCard = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await petService.updateVaccinationCard(id, req.file);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Carne de vacunacion de la mascota actualizado exitosamente.",
+            pet: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+const removeVaccinationCard = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const updated = await petService.removeVaccinationCard(id);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Carne de vacunacion de la mascota eliminado exitosamente.",
+            pet: await toResponseDTO(updated)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+module.exports = { create, update, remove, restore, getById, getAll, getAllByCustomer, updateProfilePicture, removeProfilePicture, updateVaccinationCard, removeVaccinationCard };

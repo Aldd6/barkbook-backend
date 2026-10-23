@@ -24,9 +24,6 @@ const UpdateCustomerDTO = z.object({
         .optional(),
     phoneNumber: z.string().trim()
         .regex(/^\+502\d{8}$/, { message: "El numero de telefono debe tener el formato +502 seguido de 8 digitos." })
-        .optional(),
-    profilePicture: z.string().trim()
-        .max(500, { message: "La referencia de la imagen no puede exceder los 500 caracteres." })
         .optional()
 });
 

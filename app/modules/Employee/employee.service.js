@@ -4,10 +4,15 @@ const User = dbConnection.User;
 const Branch = dbConnection.Branch;
 const City = dbConnection.City;
 const sequelize = dbConnection.sequelize;
+const bcrypt = require('bcryptjs');
 const { ApiError } = require('../../shared/utils/errors.js');
+const { revokeSessions } = require('../Auth/auth.service.js');
+const { replaceRecordFile, removeRecordFile } = require('../../shared/config/s3.js');
+
+const PROFILE_PICTURE_FOLDER = 'employees/profile-pictures';
 
 const create = async (createEmployeeDTO) => {
-    const { branchId, cityId, name, lastname, dpiNumber, addressLineOne, addressLineTwo, phoneNumber, profilePicture } = createEmployeeDTO;
+    const { branchId, cityId, name, lastname, dpiNumber, addressLineOne, addressLineTwo, phoneNumber } = createEmployeeDTO;
 
     const branchExists = await Branch.findByPk(branchId);
     if(!branchExists) throw new ApiError(`La sede con el ID ${branchId} no existe.`, "RESOURCE_NOT_FOUND");
@@ -26,8 +31,7 @@ const create = async (createEmployeeDTO) => {
         dpiNumber,
         addressLineOne,
         addressLineTwo,
-        phoneNumber,
-        profilePicture
+        phoneNumber
     });
     return newEmployee;
 }
@@ -97,4 +101,46 @@ const assignUser = async (employeeId, userId) => {
     return employee;
 }
 
-module.exports = { create, update, remove, restore, getById, getAll, assignUser };
+const findLinkedUser = async (employee, transaction) => {
+    if(!employee.userId) throw new ApiError(`El empleado con el ID ${employee.id} no tiene un usuario asignado.`, "RESOURCE_CONFLICT");
+    const user = await User.findByPk(employee.userId, { transaction });
+    if(!user) throw new ApiError(`El usuario asignado al empleado con el ID ${employee.id} no existe.`, "RESOURCE_NOT_FOUND");
+    return user;
+}
+
+const updatePassword = async (employeeId, password) => {
+    const employee = await getById(employeeId);
+
+    await sequelize.transaction(async (transaction) => {
+        const user = await findLinkedUser(employee, transaction);
+        await user.update({ hashPassword: await bcrypt.hash(password, 10) }, { transaction });
+        await revokeSessions(user.id);
+    });
+
+    return employee;
+}
+
+const revokeUser = async (employeeId) => {
+    const employee = await getById(employeeId);
+
+    await sequelize.transaction(async (transaction) => {
+        const user = await findLinkedUser(employee, transaction);
+        await employee.update({ userId: null }, { transaction });
+        await user.update({ profileCompleted: false }, { transaction });
+        await revokeSessions(user.id);
+    });
+
+    return employee;
+}
+
+const updateProfilePicture = async (id, file) => {
+    const employee = await getById(id);
+    return replaceRecordFile(employee, 'profilePicture', PROFILE_PICTURE_FOLDER, file);
+}
+
+const removeProfilePicture = async (id) => {
+    const employee = await getById(id);
+    return removeRecordFile(employee, 'profilePicture');
+}
+
+module.exports = { create, update, remove, restore, getById, getAll, assignUser, updatePassword, revokeUser, updateProfilePicture, removeProfilePicture };

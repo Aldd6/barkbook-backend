@@ -34,7 +34,8 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.INTEGER,
             allowNull: false,
             validate: {
-                isIn: [[200,201,400,401,403,404,409,429,500]]
+                min: 100,
+                max: 599
             }
         },
         detail: {

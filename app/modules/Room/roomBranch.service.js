@@ -1,4 +1,5 @@
 const dbConnection = require('../../shared/utils/index.js');
+const sequelize = dbConnection.sequelize;
 const RoomBranch = dbConnection.RoomBranch;
 const RoomType = dbConnection.RoomType;
 const RoomInventory = dbConnection.RoomInventory;
@@ -14,11 +15,23 @@ const create = async (createRoomBranchDTO) => {
     const roomTypeExists = await RoomType.findByPk(roomTypeId);
     if(!roomTypeExists) throw new ApiError(`El tipo de habitacion con el ID ${roomTypeId} no existe.`, "RESOURCE_NOT_FOUND");
 
-    const alreadyExists = await RoomBranch.findOne({ where: { branchId, roomTypeId } });
-    if(alreadyExists) throw new ApiError(`La sede con el ID ${branchId} ya tiene una configuracion para el tipo de habitacion con el ID ${roomTypeId}.`, "RESOURCE_CONFLICT");
+    const existing = await RoomBranch.findOne({ where: { branchId, roomTypeId }, paranoid: false });
+    if(existing && !existing.isSoftDeleted()) throw new ApiError(`La sede con el ID ${branchId} ya tiene una configuracion para el tipo de habitacion con el ID ${roomTypeId}.`, "RESOURCE_CONFLICT");
+
+    if(existing) {
+        const currentCount = await RoomInventory.count({ where: { roomBranchId: existing.id } });
+        if(maximumQuantity < currentCount) {
+            throw new ApiError(`No se puede asignar una cantidad maxima de ${maximumQuantity}: esta configuracion estaba archivada y ya tiene ${currentCount} habitaciones generadas.`, "RESOURCE_CONFLICT");
+        }
+        await sequelize.transaction(async (transaction) => {
+            await existing.restore({ transaction });
+            await existing.update({ maximumQuantity }, { transaction });
+        });
+        return { roomBranch: existing, restored: true };
+    }
 
     const newRoomBranch = await RoomBranch.create({ branchId, roomTypeId, maximumQuantity });
-    return newRoomBranch;
+    return { roomBranch: newRoomBranch, restored: false };
 }
 
 const update = async (id, updateRoomBranchDTO) => {

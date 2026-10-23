@@ -6,7 +6,8 @@ const RoomInventoryResponseDTO = z.object({
     roomBranchId: z.number(),
     roomNumber: z.string(),
     status: z.enum(ROOM_STATUS_ARRAY),
-    active: z.boolean()
+    active: z.boolean(),
+    archivedAt: z.date().nullable()
 });
 
 module.exports = RoomInventoryResponseDTO;

@@ -4,6 +4,13 @@ const ConfirmBookingPaymentDTO = require('./DTOs/confirm-booking-payment.js');
 const BookingResponseDTO = require('./DTOs/booking-response.js');
 const BookingPetResponseDTO = require('./DTOs/booking-pet-response.js');
 const BookingBillResponseDTO = require('./DTOs/booking-bill-response.js');
+const { MOVEMENT_TYPE } = require('../../shared/constants/enums.js');
+
+const sumByMovement = (bills, movementType) => bills
+    .filter(bill => bill.movementType === movementType)
+    .reduce((sum, bill) => sum + parseFloat(bill.amount), 0);
+
+const balanceOf = (bills) => Math.round((sumByMovement(bills, MOVEMENT_TYPE.CARGO) - sumByMovement(bills, MOVEMENT_TYPE.ABONO)) * 100) / 100;
 
 const toResponseDTO = (booking) => BookingResponseDTO.parse({
     id: booking.id,
@@ -22,12 +29,15 @@ const toResponseDTO = (booking) => BookingResponseDTO.parse({
     bill: (booking.BookingBills || []).map(bb => BookingBillResponseDTO.parse({
         id: bb.id,
         bookingId: bb.bookingId,
+        serviceId: bb.serviceId,
+        quantity: bb.quantity,
         movementType: bb.movementType,
         amount: bb.amount,
         methodPayment: bb.methodPayment,
         reference: bb.reference,
         description: bb.description
-    }))
+    })),
+    balance: balanceOf(booking.BookingBills || [])
 });
 
 const create = async (req, res, next) => {
@@ -105,8 +115,6 @@ const getAllByCustomer = async (req, res, next) => {
     }
 };
 
-// Reservas PENDIENTE DE CONFIRMAR junto con el tiempo restante antes de que
-// el sistema las cancele automaticamente (plazo de 5 dias).
 const getPendingWithTimeRemaining = async (req, res, next) => {
     try {
         const pending = await bookingService.getPendingWithTimeRemaining();
@@ -125,8 +133,6 @@ const getPendingWithTimeRemaining = async (req, res, next) => {
     }
 };
 
-// Informa al personal de mostrador cuales reservas quedaron CANCELADA por no
-// haberse pagado dentro del plazo de 5 dias.
 const getAutoCancelledBookings = async (req, res, next) => {
     try {
         const cancelledBookings = await bookingService.getAutoCancelledBookings();
@@ -141,4 +147,4 @@ const getAutoCancelledBookings = async (req, res, next) => {
     }
 };
 
-module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings };
+module.exports = { create, confirmPayment, getById, getAll, getAllByCustomer, getPendingWithTimeRemaining, getAutoCancelledBookings, toResponseDTO };

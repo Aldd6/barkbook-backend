@@ -16,14 +16,14 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: false,
             field: 'check_in_id'
         },
-        petId: {
+        bookingPetId: {
             type: Sequelize.INTEGER,
             references: {
-                model: 'Pet',
-                key: 'id_pet'
+                model: 'BookingPet',
+                key: 'id_booking_pet'
             },
             allowNull: false,
-            field: 'pet_id'
+            field: 'booking_pet_id'
         },
         admitted: {
             type: Sequelize.BOOLEAN,
@@ -36,11 +36,20 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: true,
             field: 'non_admission_reason'
         }
+    },
+    {
+        indexes: [
+            {
+                unique: true,
+                fields: ['check_in_id', 'booking_pet_id'],
+                name: 'unique_booking_pet_per_check_in'
+            }
+        ]
     });
 
     CheckInPet.associate = (models) => {
         CheckInPet.belongsTo(models.CheckIn, { foreignKey: 'checkInId' });
-        CheckInPet.belongsTo(models.Pet, { foreignKey: 'petId' });
+        CheckInPet.belongsTo(models.BookingPet, { foreignKey: 'bookingPetId' });
     }
 
     return CheckInPet;

@@ -2,13 +2,15 @@ const roomInventoryService = require('./roomInventory.service.js');
 const GenerateRoomInventoryDTO = require('./DTOs/generate-room-inventory.js');
 const UpdateRoomInventoryDTO = require('./DTOs/update-room-inventory.js');
 const RoomInventoryResponseDTO = require('./DTOs/room-inventory-response.js');
+const ArchivedRoomInventoryQueryDTO = require('./DTOs/archived-room-inventory-query.js');
 
 const toResponseDTO = (room) => RoomInventoryResponseDTO.parse({
     id: room.id,
     roomBranchId: room.roomBranchId,
     roomNumber: room.roomNumber,
     status: room.status,
-    active: room.active
+    active: room.active,
+    archivedAt: room.archivadoEn ?? null
 });
 
 const generateBulk = async (req, res, next) => {
@@ -116,4 +118,19 @@ const getAllByRoomBranch = async (req, res, next) => {
     }
 };
 
-module.exports = { generateBulk, update, remove, restore, getById, getAll, getAllByRoomBranch };
+const getArchived = async (req, res, next) => {
+    try {
+        const { roomBranchId } = ArchivedRoomInventoryQueryDTO.parse(req.query);
+        const rooms = await roomInventoryService.getArchived(roomBranchId);
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Habitaciones archivadas obtenidas exitosamente.",
+            roomInventory: rooms.map(toResponseDTO)
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+module.exports = { generateBulk, update, remove, restore, getById, getAll, getAllByRoomBranch, getArchived };

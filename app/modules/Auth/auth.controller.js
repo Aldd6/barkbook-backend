@@ -2,7 +2,9 @@ const authService = require('./auth.service.js');
 const SignInDTO = require('./DTOs/sign-in.js');
 const SignUpDTO = require('./DTOs/sign-up.js');
 const SignUpResponseDTO = require('./DTOs/sign-up-response.js');
+const MeResponseDTO = require('./DTOs/me-response.js');
 const { setRefreshTokenCookie, clearRefreshTokenCookie, REFRESH_TOKEN_COOKIE } = require('../../shared/utils/cookies.js');
+const { getFileUrl } = require('../../shared/config/s3.js');
 
 const signup = async (req, res, next) => {
     try {
@@ -70,4 +72,32 @@ const signout = async (req, res, next) => {
     }
 };
 
-module.exports = { signup, signin, refresh, signout };
+const me = async (req, res, next) => {
+    try {
+        const user = await authService.me(req.user.id);
+        const responseDTO = MeResponseDTO.parse({
+            user: {
+                id: user.id,
+                uid: user.uid,
+                username: user.username,
+                email: user.email,
+                rolId: user.rolId,
+                roleName: user.Role.roleName,
+                profileCompleted: user.profileCompleted
+            },
+            customer: user.Customer ? { ...user.Customer.get({ plain: true }), profilePicture: await getFileUrl(user.Customer.profilePicture) } : null,
+            employee: user.Employee ? { ...user.Employee.get({ plain: true }), profilePicture: await getFileUrl(user.Employee.profilePicture) } : null,
+            permissions: user.Role.Permissions.map(permission => permission.permissionName)
+        });
+        return res.status(200).json({
+            success: true,
+            status: 200,
+            message: "Sesion obtenida exitosamente.",
+            ...responseDTO
+        });
+    } catch(error) {
+        next(error);
+    }
+};
+
+module.exports = { signup, signin, refresh, signout, me };

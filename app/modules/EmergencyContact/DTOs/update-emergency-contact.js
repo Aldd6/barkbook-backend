@@ -1,8 +1,6 @@
 const z = require('zod');
 const { KINSHIP_ARRAY } = require('../../../shared/constants/enums.js');
 
-// customerId no es editable: un contacto de emergencia no deberia
-// "traspasarse" a otro cliente, se elimina y se crea uno nuevo si aplica.
 const UpdateEmergencyContactDTO = z.object({
     name: z.string().trim()
         .min(2, { message: "El nombre debe tener al menos 2 caracteres." })
