@@ -6,7 +6,7 @@ module.exports = {
     dialect: process.env.DB_DIALECT,
     ssl: process.env.DB_SSL === 'require' ? true:false,
     pool: {
-        max: 1000,
+        max: 10,
         min: 0,
         acquire: 30000,
         idle: 10000
