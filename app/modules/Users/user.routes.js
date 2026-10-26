@@ -11,6 +11,8 @@ const USER_ENTITY_NAME = 'User';
 
 router.post('/', verifyToken, authorize(PERMISSIONS.GESTIONAR_USUARIOS), registerWorklog(USER_ENTITY_NAME), userController.create);
 router.get('/', verifyToken, authorize(PERMISSIONS.GESTIONAR_USUARIOS), registerWorklog(USER_ENTITY_NAME), userController.getAllUsers);
+router.get('/customers', verifyToken, authorize(PERMISSIONS.GESTIONAR_USUARIOS), registerWorklog(USER_ENTITY_NAME), userController.getAllCustomers);
+router.get('/customers/:uid', verifyToken, authorize(PERMISSIONS.GESTIONAR_USUARIOS), registerWorklog(USER_ENTITY_NAME), userController.getCustomerByUid);
 router.get('/:uid', verifyToken, registerWorklog(USER_ENTITY_NAME), ensureSelfUser(req => req.params.uid, PERMISSIONS.GESTIONAR_USUARIOS), userController.getUserByUid);
 router.put('/:uid', verifyToken, registerWorklog(USER_ENTITY_NAME), ensureSelfUser(req => req.params.uid, PERMISSIONS.GESTIONAR_USUARIOS), authorize.authorizeFields(['rolId', 'profileCompleted'], PERMISSIONS.GESTIONAR_USUARIOS), userController.update);
 router.delete('/:uid', verifyToken, registerWorklog(USER_ENTITY_NAME), ensureSelfUser(req => req.params.uid, PERMISSIONS.GESTIONAR_USUARIOS), userController.remove);

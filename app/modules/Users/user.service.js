@@ -1,9 +1,12 @@
 const dbConnection = require('../../shared/utils/index.js');
 const User = dbConnection.User;
 const Role = dbConnection.Role;
+const Customer = dbConnection.Customer;
+const Pet = dbConnection.Pet;
 const bcrypt = require('bcryptjs');
 const { ApiError}  = require('../../shared/utils/errors.js');
 const Op = dbConnection.Sequelize.Op;
+const { CUSTOMER_ROLE_NAME } = require('../../shared/middlewares/ownership.js');
 
 const create = async (createUserDTO) => {
     const { rolId, username, email, password } = createUserDTO;
@@ -90,4 +93,28 @@ const getAll = async () => {
     return users;
 }
 
-module.exports = { create, update, remove, getByUid, getAll };
+const getAllCustomers = async () => {
+    const users = await User.findAll({
+        include: [
+            { model: Role, where: { roleName: CUSTOMER_ROLE_NAME }, attributes: [] },
+            { model: Customer, required: false }
+        ],
+        order: [['id', 'ASC']]
+    });
+    return users;
+}
+
+const getCustomerByUid = async (uid) => {
+    const user = await User.findOne({
+        where: { uid: uid },
+        include: [
+            { model: Role, where: { roleName: CUSTOMER_ROLE_NAME }, attributes: [] },
+            { model: Customer, required: false, include: [{ model: Pet, required: false }] }
+        ],
+        order: [[Customer, Pet, 'id', 'ASC']]
+    });
+    if(!user) throw new ApiError(`El usuario cliente con el UID ${uid} no existe.`, "RESOURCE_NOT_FOUND");
+    return user;
+}
+
+module.exports = { create, update, remove, getByUid, getAll, getAllCustomers, getCustomerByUid };
