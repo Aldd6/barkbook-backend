@@ -8,16 +8,20 @@ let s3Client = null;
 const getS3Client = () => {
     if(!s3Client) {
         const { S3_BUCKET_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME } = process.env;
-        if(!S3_BUCKET_NAME || !S3_BUCKET_REGION || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
-            throw new Error("Las variables S3_BUCKET_NAME, S3_BUCKET_REGION, S3_ACCESS_KEY_ID y S3_SECRET_ACCESS_KEY deben estar configuradas en el archivo .env correspondiente.");
+        if(!S3_BUCKET_NAME || !S3_BUCKET_REGION) {
+            throw new Error("Error en la conexion con el almacenamiento de objetos.");
         }
-        s3Client = new S3Client({
-            region: S3_BUCKET_REGION,
-            credentials: {
+        if(!!S3_ACCESS_KEY_ID !== !!S3_SECRET_ACCESS_KEY) {
+            throw new Error("S3_ACCESS_KEY_ID y S3_SECRET_ACCESS_KEY deben configurarse juntas, o dejarse ambas vacias para usar el rol IAM de la instancia.");
+        }
+        const config = { region: S3_BUCKET_REGION };
+        if(S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY) {
+            config.credentials = {
                 accessKeyId: S3_ACCESS_KEY_ID,
                 secretAccessKey: S3_SECRET_ACCESS_KEY
-            }
-        });
+            };
+        }
+        s3Client = new S3Client(config);
     }
     return s3Client;
 }
